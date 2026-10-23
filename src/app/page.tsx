@@ -13,6 +13,9 @@ import {
   TIDE_STATIONS,
   DEFAULT_TIDE_STATION,
 } from "@/lib/environmental";
+import { useConvexAuth } from "@convex-dev/auth/react";
+import { useQuery, useMutation } from "convex/react";
+import { api } from "../../convex/_generated/api";
 import { Anchor, Compass, Waves, Loader2 } from "lucide-react";
 
 function subscribe() {
@@ -32,18 +35,35 @@ function TidelogApp() {
   const [userSelectedDate, setUserSelectedDate] = useState<string | null>(null);
   const selectedDate = userSelectedDate ?? clientToday;
 
+  const { isAuthenticated } = useConvexAuth();
+  const userSettings = useQuery(api.settings.getSettings);
+  const setTideStation = useMutation(api.settings.setTideStation);
+
   const [selectedStation, setSelectedStation] = useState<TideStationId>(DEFAULT_TIDE_STATION);
 
+  // Sync from Convex user settings when signed in
   useEffect(() => {
-    try {
-      const saved = localStorage.getItem("tidelog_station");
-      if (saved === "aquatic-park" || saved === "crane-cove") {
-        setSelectedStation(saved);
-      }
-    } catch {
-      // Local storage unavailable
+    if (
+      userSettings?.tideStation === "aquatic-park" ||
+      userSettings?.tideStation === "crane-cove"
+    ) {
+      setSelectedStation(userSettings.tideStation as TideStationId);
     }
-  }, []);
+  }, [userSettings?.tideStation]);
+
+  // Local storage fallback for guest mode
+  useEffect(() => {
+    if (!isAuthenticated) {
+      try {
+        const saved = localStorage.getItem("tidelog_station");
+        if (saved === "aquatic-park" || saved === "crane-cove") {
+          setSelectedStation(saved);
+        }
+      } catch {
+        // Local storage unavailable
+      }
+    }
+  }, [isAuthenticated]);
 
   const handleStationChange = (station: TideStationId) => {
     setSelectedStation(station);
@@ -51,6 +71,9 @@ function TidelogApp() {
       localStorage.setItem("tidelog_station", station);
     } catch {
       // Local storage unavailable
+    }
+    if (isAuthenticated) {
+      setTideStation({ tideStation: station }).catch(console.error);
     }
   };
 

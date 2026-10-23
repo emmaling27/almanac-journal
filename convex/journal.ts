@@ -1,9 +1,11 @@
 import { query, mutation } from "./_generated/server";
 import { v } from "convex/values";
+import { getAuthUserId } from "@convex-dev/auth/server";
 
 const goalLogValidator = v.object({
   _id: v.id("goal_logs"),
   _creationTime: v.number(),
+  userId: v.optional(v.id("users")),
   journalEntryId: v.id("journal_entries"),
   goalId: v.id("goals"),
   date: v.string(),
@@ -14,6 +16,7 @@ const goalLogValidator = v.object({
 const journalEntryValidator = v.object({
   _id: v.id("journal_entries"),
   _creationTime: v.number(),
+  userId: v.optional(v.id("users")),
   date: v.string(),
   reflection: v.string(),
   createdAt: v.optional(v.number()),
@@ -67,6 +70,8 @@ export const saveEntry = mutation({
   }),
   handler: async (ctx, args) => {
     const now = Date.now();
+    const userId = await getAuthUserId(ctx);
+
     const entry = await ctx.db
       .query("journal_entries")
       .withIndex("by_date", (q) => q.eq("date", args.date))
@@ -76,6 +81,7 @@ export const saveEntry = mutation({
 
     if (!entry) {
       entryId = await ctx.db.insert("journal_entries", {
+        userId: userId ?? undefined,
         date: args.date,
         reflection: args.reflection,
         createdAt: now,
@@ -83,6 +89,7 @@ export const saveEntry = mutation({
       });
     } else {
       await ctx.db.patch(entry._id, {
+        ...(userId && !entry.userId ? { userId } : {}),
         reflection: args.reflection,
         updatedAt: now,
       });
@@ -98,12 +105,14 @@ export const saveEntry = mutation({
 
       if (existingLog) {
         await ctx.db.patch(existingLog._id, {
+          ...(userId && !existingLog.userId ? { userId } : {}),
           journalEntryId: entryId!,
           met: logInput.met,
           note: logInput.note,
         });
       } else {
         await ctx.db.insert("goal_logs", {
+          userId: userId ?? undefined,
           journalEntryId: entryId!,
           goalId: logInput.goalId,
           date: args.date,

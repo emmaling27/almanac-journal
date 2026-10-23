@@ -1,5 +1,6 @@
 import { query, mutation } from "./_generated/server";
 import { v } from "convex/values";
+import { getAuthUserId } from "@convex-dev/auth/server";
 
 export const getGoals = query({
   args: {
@@ -9,6 +10,7 @@ export const getGoals = query({
     v.object({
       _id: v.id("goals"),
       _creationTime: v.number(),
+      userId: v.optional(v.id("users")),
       name: v.string(),
       active: v.boolean(),
       color: v.optional(v.string()),
@@ -39,7 +41,9 @@ export const addGoal = mutation({
     if (!trimmed) {
       throw new Error("Goal name cannot be empty");
     }
+    const userId = await getAuthUserId(ctx);
     return await ctx.db.insert("goals", {
+      userId: userId ?? undefined,
       name: trimmed,
       active: true,
       color: args.color,

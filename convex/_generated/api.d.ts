@@ -8,8 +8,11 @@
  * @module
  */
 
+import type * as auth from "../auth.js";
 import type * as goals from "../goals.js";
+import type * as http from "../http.js";
 import type * as journal from "../journal.js";
+import type * as settings from "../settings.js";
 
 import type {
   ApiFromModules,
@@ -18,8 +21,11 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  auth: typeof auth;
   goals: typeof goals;
+  http: typeof http;
   journal: typeof journal;
+  settings: typeof settings;
 }>;
 
 /**

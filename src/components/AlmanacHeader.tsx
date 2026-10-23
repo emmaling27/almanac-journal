@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import { format, parseISO, addDays, subDays } from "date-fns";
 import {
   Compass,
@@ -13,12 +13,19 @@ import {
   ChevronRight,
   Anchor,
   Clock,
+  LogIn,
+  LogOut,
+  User as UserIcon,
 } from "lucide-react";
 import {
   AlmanacEnvironmentalData,
   TideStationId,
   TIDE_STATIONS,
 } from "@/lib/environmental";
+import { useConvexAuth, useAuthActions } from "@convex-dev/auth/react";
+import { useQuery } from "convex/react";
+import { api } from "../../convex/_generated/api";
+import { AuthModal } from "@/components/AuthModal";
 
 interface AlmanacHeaderProps {
   selectedDate: string; // "YYYY-MM-DD"
@@ -43,6 +50,11 @@ export function AlmanacHeader({
   const isToday = todayStr ? todayStr === selectedDate : false;
   const stationConfig = TIDE_STATIONS[selectedStation] ?? TIDE_STATIONS["aquatic-park"];
 
+  const { isAuthenticated } = useConvexAuth();
+  const { signOut } = useAuthActions();
+  const currentUser = useQuery(api.settings.currentUser);
+  const [isAuthOpen, setIsAuthOpen] = useState(false);
+
   const handlePrevDay = () => {
     const prev = subDays(currentDateObj, 1);
     onDateChange(format(prev, "yyyy-MM-dd"));
@@ -60,8 +72,52 @@ export function AlmanacHeader({
   };
 
   return (
-    <header className="border-b border-[#D8CFBF] bg-[#F4EFE6] px-4 py-6 md:px-8 shadow-sm">
-      <div className="max-w-6xl mx-auto space-y-6">
+    <header className="border-b border-[#D8CFBF] bg-[#F4EFE6] px-4 py-5 md:px-8 shadow-sm">
+      <div className="max-w-6xl mx-auto space-y-5">
+        {/* Top Bar with Authentication Controls */}
+        <div className="flex items-center justify-between text-xs font-mono border-b border-[#D8CFBF]/70 pb-3">
+          <div className="flex items-center gap-2 text-[#7A6B53]">
+            <Anchor className="w-3.5 h-3.5 text-[#B38F4D]" />
+            <span className="uppercase tracking-[0.2em] text-[11px] font-semibold hidden sm:inline">
+              Maritime Observatory & Daily Tidelog
+            </span>
+            <span className="uppercase tracking-[0.2em] text-[11px] font-semibold sm:hidden">
+              SF Bay Tidelog
+            </span>
+          </div>
+
+          <div className="flex items-center gap-2">
+            {isAuthenticated ? (
+              <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1.5 px-2.5 py-1 rounded bg-[#EAE2D2] border border-[#D8CFBF] text-[#0A192F] text-[11px]">
+                  <UserIcon className="w-3.5 h-3.5 text-[#B38F4D]" />
+                  <span className="font-semibold max-w-[150px] truncate">
+                    {currentUser?.name || currentUser?.email || "Signed In"}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => void signOut()}
+                  className="flex items-center gap-1 px-2 py-1 rounded text-[11px] text-[#7A6B53] hover:text-[#0A192F] hover:bg-[#EAE2D2] border border-transparent hover:border-[#D8CFBF] transition-colors"
+                  title="Sign Out"
+                >
+                  <LogOut className="w-3 h-3" />
+                  <span className="hidden sm:inline">Sign Out</span>
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setIsAuthOpen(true)}
+                className="flex items-center gap-1.5 px-3 py-1 rounded bg-[#0A192F] hover:bg-[#142C4B] text-[#F4EFE6] text-xs font-semibold uppercase tracking-wider transition-colors shadow-xs"
+              >
+                <LogIn className="w-3.5 h-3.5 text-[#DFC898]" />
+                <span>Sign In / Register</span>
+              </button>
+            )}
+          </div>
+        </div>
+
         {/* Masthead */}
         <div className="text-center space-y-2 border-b border-[#D8CFBF] pb-5 relative">
           <div className="flex items-center justify-center gap-2 text-xs uppercase tracking-[0.25em] text-[#7A6B53] font-mono">
@@ -299,6 +355,8 @@ export function AlmanacHeader({
           </div>
         </div>
       </div>
+
+      <AuthModal isOpen={isAuthOpen} onClose={() => setIsAuthOpen(false)} />
     </header>
   );
 }
