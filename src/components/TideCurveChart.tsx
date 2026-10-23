@@ -11,13 +11,20 @@ import {
   ReferenceLine,
 } from "recharts";
 import { Waves, ArrowUpRight, ArrowDownRight } from "lucide-react";
-import { TidePoint, TideEvent } from "@/lib/environmental";
+import {
+  TidePoint,
+  TideEvent,
+  TideStationId,
+  TIDE_STATIONS,
+} from "@/lib/environmental";
 
 interface TideCurveChartProps {
   tideCurve: TidePoint[];
   tideEvents: TideEvent[];
   selectedDate: string;
   todayStr: string;
+  selectedStation?: TideStationId;
+  onStationChange?: (station: TideStationId) => void;
 }
 
 export function TideCurveChart({
@@ -25,7 +32,10 @@ export function TideCurveChart({
   tideEvents,
   selectedDate,
   todayStr,
+  selectedStation = "aquatic-park",
+  onStationChange,
 }: TideCurveChartProps) {
+  const stationConfig = TIDE_STATIONS[selectedStation] ?? TIDE_STATIONS["aquatic-park"];
   const isToday = todayStr ? todayStr === selectedDate : false;
 
   const currentHourFormatted = useMemo(() => {
@@ -49,17 +59,49 @@ export function TideCurveChart({
         <div className="flex items-center gap-2">
           <Waves className="w-5 h-5 text-[#0A192F]" />
           <div>
-            <h2 className="text-xl font-serif font-bold tracking-tight text-[#0A192F]">
-              Tidal Curve & Soundings (MLLW)
-            </h2>
+            <div className="flex items-center gap-2">
+              <h2 className="text-xl font-serif font-bold tracking-tight text-[#0A192F]">
+                Tidal Curve & Soundings (MLLW)
+              </h2>
+              <span className="text-[10px] font-mono uppercase px-2 py-0.5 rounded bg-[#EAE2D2] text-[#0A192F] font-bold border border-[#D8CFBF]">
+                {stationConfig.shortName}
+              </span>
+            </div>
             <p className="text-xs text-[#5B6B7A] font-mono">
-              24-Hour Continuous Tidal Cycle • Golden Gate Reference
+              24-Hour Continuous Tidal Cycle • {stationConfig.name}
             </p>
           </div>
         </div>
 
-        {/* Tide Event Badges */}
+        {/* Station Quick Toggle & Tide Event Badges */}
         <div className="flex flex-wrap items-center gap-2">
+          {onStationChange && (
+            <div className="flex items-center gap-1 bg-[#FAF7F0] p-1 rounded-md border border-[#D8CFBF] mr-1">
+              <button
+                type="button"
+                onClick={() => onStationChange("aquatic-park")}
+                className={`px-2 py-0.5 rounded text-[11px] font-mono font-semibold transition-all ${
+                  selectedStation === "aquatic-park"
+                    ? "bg-[#0A192F] text-[#F4EFE6] shadow-xs"
+                    : "text-[#5B6B7A] hover:text-[#0A192F]"
+                }`}
+              >
+                Aquatic Park
+              </button>
+              <button
+                type="button"
+                onClick={() => onStationChange("crane-cove")}
+                className={`px-2 py-0.5 rounded text-[11px] font-mono font-semibold transition-all ${
+                  selectedStation === "crane-cove"
+                    ? "bg-[#0A192F] text-[#F4EFE6] shadow-xs"
+                    : "text-[#5B6B7A] hover:text-[#0A192F]"
+                }`}
+              >
+                Crane Cove
+              </button>
+            </div>
+          )}
+
           {tideEvents.map((evt, idx) => (
             <div
               key={idx}

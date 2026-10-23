@@ -9,6 +9,9 @@ import { GoalTrackerMatrix } from "@/components/GoalTrackerMatrix";
 import {
   fetchEnvironmentalData,
   AlmanacEnvironmentalData,
+  TideStationId,
+  TIDE_STATIONS,
+  DEFAULT_TIDE_STATION,
 } from "@/lib/environmental";
 import { Anchor, Compass, Waves, Loader2 } from "lucide-react";
 
@@ -29,24 +32,50 @@ function TidelogApp() {
   const [userSelectedDate, setUserSelectedDate] = useState<string | null>(null);
   const selectedDate = userSelectedDate ?? clientToday;
 
+  const [selectedStation, setSelectedStation] = useState<TideStationId>(DEFAULT_TIDE_STATION);
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("tidelog_station");
+      if (saved === "aquatic-park" || saved === "crane-cove") {
+        setSelectedStation(saved);
+      }
+    } catch {
+      // Local storage unavailable
+    }
+  }, []);
+
+  const handleStationChange = (station: TideStationId) => {
+    setSelectedStation(station);
+    try {
+      localStorage.setItem("tidelog_station", station);
+    } catch {
+      // Local storage unavailable
+    }
+  };
+
   const [envState, setEnvState] = useState<{
     date: string;
+    station: TideStationId;
     data: AlmanacEnvironmentalData | null;
     loading: boolean;
   }>({
     date: "",
+    station: DEFAULT_TIDE_STATION,
     data: null,
     loading: true,
   });
 
   useEffect(() => {
     let isCancelled = false;
+    setEnvState((prev) => ({ ...prev, loading: true }));
 
-    fetchEnvironmentalData(selectedDate)
+    fetchEnvironmentalData(selectedDate, selectedStation)
       .then((data) => {
         if (!isCancelled) {
           setEnvState({
             date: selectedDate,
+            station: selectedStation,
             data,
             loading: false,
           });
@@ -62,10 +91,14 @@ function TidelogApp() {
     return () => {
       isCancelled = true;
     };
-  }, [selectedDate]);
+  }, [selectedDate, selectedStation]);
 
-  const loadingEnv = envState.loading || envState.date !== selectedDate;
+  const loadingEnv =
+    envState.loading ||
+    envState.date !== selectedDate ||
+    envState.station !== selectedStation;
   const envData = envState.data;
+  const stationConfig = TIDE_STATIONS[selectedStation] ?? TIDE_STATIONS[DEFAULT_TIDE_STATION];
 
   return (
     <div className="min-h-screen flex flex-col bg-[#F7F4EE] text-[#142334]">
@@ -74,6 +107,8 @@ function TidelogApp() {
         selectedDate={selectedDate}
         todayStr={clientToday}
         onDateChange={setUserSelectedDate}
+        selectedStation={selectedStation}
+        onStationChange={handleStationChange}
         envData={envData}
         loading={loadingEnv}
       />
@@ -84,7 +119,7 @@ function TidelogApp() {
         {loadingEnv && !envData && (
           <div className="flex items-center justify-center p-8 bg-[#FAF7F0] border border-[#E3DAC9] rounded-lg text-xs font-mono text-[#7A6B53] gap-2">
             <Loader2 className="w-4 h-4 animate-spin text-[#B38F4D]" />
-            <span>Calculating tidal curves and astronomical cycles for {selectedDate}...</span>
+            <span>Calculating tidal curves and astronomical cycles for {stationConfig.shortName} ({selectedDate})...</span>
           </div>
         )}
 
@@ -95,6 +130,8 @@ function TidelogApp() {
             tideEvents={envData.tideEvents}
             selectedDate={selectedDate}
             todayStr={clientToday}
+            selectedStation={selectedStation}
+            onStationChange={handleStationChange}
           />
         )}
 
@@ -121,7 +158,7 @@ function TidelogApp() {
             San Francisco Bay Tidelog & Reflective Journal
           </p>
           <p className="text-[11px] leading-relaxed text-[#7A6B53]">
-            Tidal Predictions referenced from NOAA CO-OPS Station #9414290 (Fort Point / Golden Gate).
+            Tidal Predictions referenced from NOAA CO-OPS Station #{stationConfig.noaaStationId} ({stationConfig.name}).
             <br />
             Meteorological data provided by Open-Meteo API. Relational schema powered by Convex.
           </p>

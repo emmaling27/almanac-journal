@@ -1,3 +1,47 @@
+export type TideStationId = "aquatic-park" | "crane-cove";
+
+export interface TideStationConfig {
+  id: TideStationId;
+  name: string;
+  shortName: string;
+  noaaStationId: string;
+  coordinates: string;
+  lat: number;
+  lng: number;
+  description: string;
+  timeOffsetMin: number;
+  heightOffsetHigh: number;
+}
+
+export const TIDE_STATIONS: Record<TideStationId, TideStationConfig> = {
+  "aquatic-park": {
+    id: "aquatic-park",
+    name: "Aquatic Park (Pier 41 / North Point)",
+    shortName: "Aquatic Park",
+    noaaStationId: "9414305",
+    coordinates: "37°48.5' N, 122°25.4' W",
+    lat: 37.8085,
+    lng: -122.424,
+    description: "North waterfront cove • Fisherman's Wharf / Pier 41 reference",
+    timeOffsetMin: 12,
+    heightOffsetHigh: 0.2,
+  },
+  "crane-cove": {
+    id: "crane-cove",
+    name: "Crane Cove (Potrero Point / Central Basin)",
+    shortName: "Crane Cove",
+    noaaStationId: "9414334",
+    coordinates: "37°45.9' N, 122°23.2' W",
+    lat: 37.7645,
+    lng: -122.387,
+    description: "Central waterfront & Dogpatch • Potrero Point / Pier 70 reference",
+    timeOffsetMin: 40,
+    heightOffsetHigh: 0.5,
+  },
+};
+
+export const DEFAULT_TIDE_STATION: TideStationId = "aquatic-park";
+
 export interface TidePoint {
   time: string; // "HH:mm"
   height: number; // in feet
@@ -28,7 +72,9 @@ export interface WindData {
 
 export interface AlmanacEnvironmentalData {
   date: string;
+  stationId: TideStationId;
   stationName: string;
+  stationShortName: string;
   coordinates: string;
   tideCurve: TidePoint[];
   tideEvents: TideEvent[];
@@ -100,27 +146,51 @@ export function calculateMoonPhase(dateObj: Date): {
   return { name, illumination, icon };
 }
 
-// Fallback synthetic harmonic tide curve for SF Bay (station 9414290)
-function generateSyntheticTides(dateStr: string): {
+// Fallback synthetic harmonic tide curve calibrated for SF Bay locations
+function generateSyntheticTides(
+  dateStr: string,
+  station: TideStationConfig
+): {
   curve: TidePoint[];
   events: TideEvent[];
 } {
   const curve: TidePoint[] = [];
-  const events: TideEvent[] = [
-    { time: "02:45", height: 0.8, type: "Low" },
-    { time: "09:30", height: 5.2, type: "High" },
-    { time: "15:20", height: 1.6, type: "Low" },
-    { time: "21:30", height: 4.9, type: "High" },
+  const timeShiftHours = station.timeOffsetMin / 60;
+  const heightBoost = station.heightOffsetHigh;
+
+  const baseEvents = [
+    { hour: 3.75, height: 0.9, type: "Low" as const },
+    { hour: 10.35, height: 5.6 + heightBoost, type: "High" as const },
+    { hour: 16.5, height: 0.9, type: "Low" as const },
+    { hour: 22.75, height: 4.9 + heightBoost * 0.7, type: "High" as const },
   ];
+
+  const events: TideEvent[] = baseEvents.map((evt) => {
+    const totalMinutes =
+      Math.round((evt.hour + (station.id === "crane-cove" ? 0.6 : 0.15)) * 60) %
+      (24 * 60);
+    const hh = String(Math.floor(totalMinutes / 60)).padStart(2, "0");
+    const mm = String(totalMinutes % 60).padStart(2, "0");
+    return {
+      time: `${hh}:${mm}`,
+      height: Math.round(evt.height * 10) / 10,
+      type: evt.type,
+    };
+  });
 
   for (let h = 0; h < 24; h++) {
     for (let m = 0; m < 60; m += 30) {
       const timeHours = h + m / 60;
-      // Semi-diurnal tide formula approximation for SF Bay
+      const adjustedTime = timeHours - timeShiftHours;
+      const baseHeight =
+        3.0 +
+        2.2 * Math.sin(((adjustedTime - 5.5) / 12.42) * 2 * Math.PI) +
+        0.8 * Math.sin(((adjustedTime - 8.5) / 24.84) * 2 * Math.PI);
       const height =
-        2.9 +
-        2.2 * Math.sin(((timeHours - 5.5) / 12.42) * 2 * Math.PI) +
-        0.8 * Math.sin(((timeHours - 8.5) / 24.84) * 2 * Math.PI);
+        baseHeight > 3.0
+          ? baseHeight + ((baseHeight - 3.0) / 2.5) * heightBoost
+          : baseHeight;
+
       const hh = String(h).padStart(2, "0");
       const mm = String(m).padStart(2, "0");
       curve.push({
@@ -135,8 +205,10 @@ function generateSyntheticTides(dateStr: string): {
 }
 
 export async function fetchEnvironmentalData(
-  dateStr: string // "YYYY-MM-DD"
+  dateStr: string, // "YYYY-MM-DD"
+  stationId: TideStationId = DEFAULT_TIDE_STATION
 ): Promise<AlmanacEnvironmentalData> {
+  const station = TIDE_STATIONS[stationId] ?? TIDE_STATIONS[DEFAULT_TIDE_STATION];
   const [year, month, day] = dateStr.split("-");
   const noaaDateStr = `${year}${month}${day}`;
   const dateObj = new Date(`${dateStr}T12:00:00`);
@@ -145,53 +217,76 @@ export async function fetchEnvironmentalData(
   let tideEvents: TideEvent[] = [];
 
   // 1. Fetch NOAA Tide Predictions
+  // - High/Low predictions come directly from the specific station (9414305 for Aquatic Park, 9414334 for Crane Cove)
+  // - Continuous 6-minute curve comes from reference station 9414290 (Golden Gate), shifted and scaled by station offsets
   try {
     const [curveRes, hiloRes] = await Promise.all([
       fetch(
         `https://api.tidesandcurrents.noaa.gov/api/prod/datagetter?begin_date=${noaaDateStr}&end_date=${noaaDateStr}&station=9414290&product=predictions&datum=MLLW&time_zone=lst_ldt&units=english&format=json`
       ),
       fetch(
-        `https://api.tidesandcurrents.noaa.gov/api/prod/datagetter?begin_date=${noaaDateStr}&end_date=${noaaDateStr}&station=9414290&product=predictions&datum=MLLW&time_zone=lst_ldt&units=english&interval=hilo&format=json`
+        `https://api.tidesandcurrents.noaa.gov/api/prod/datagetter?begin_date=${noaaDateStr}&end_date=${noaaDateStr}&station=${station.noaaStationId}&product=predictions&datum=MLLW&time_zone=lst_ldt&units=english&interval=hilo&format=json`
       ),
     ]);
 
-    if (curveRes.ok && hiloRes.ok) {
-      const curveData = await curveRes.json();
+    if (hiloRes.ok) {
       const hiloData = await hiloRes.json();
-
-      if (Array.isArray(curveData?.predictions)) {
-        // Downsample from 6m to 30m intervals
-        tideCurve = curveData.predictions
-          .filter((_: unknown, index: number) => index % 5 === 0)
-          .map((p: { t: string; v: string }) => {
-            const timePart = p.t.split(" ")[1];
-            return {
-              time: timePart,
-              height: parseFloat(p.v),
-              timestamp: p.t,
-            };
-          });
-      }
-
-      if (Array.isArray(hiloData?.predictions)) {
+      if (Array.isArray(hiloData?.predictions) && hiloData.predictions.length > 0) {
         tideEvents = hiloData.predictions.map((p: { t: string; v: string; type: string }) => {
           const timePart = p.t.split(" ")[1];
           return {
             time: timePart,
-            height: parseFloat(p.v),
+            height: Math.round(parseFloat(p.v) * 10) / 10,
             type: p.type === "H" ? ("High" as const) : ("Low" as const),
           };
         });
       }
     }
+
+    if (curveRes.ok) {
+      const curveData = await curveRes.json();
+      if (Array.isArray(curveData?.predictions) && curveData.predictions.length > 0) {
+        // Shift continuous predictions by station time & height offsets
+        const shifted = curveData.predictions.map((p: { t: string; v: string }) => {
+          const [, tPart] = p.t.split(" ");
+          const [h, m] = tPart.split(":").map(Number);
+          const totalMin = h * 60 + m + station.timeOffsetMin;
+          const v = parseFloat(p.v);
+          const adjustedV =
+            v > 2.5
+              ? v + Math.min(1, Math.max(0, (v - 2.5) / 3.0)) * station.heightOffsetHigh
+              : v;
+          return { totalMin, v: adjustedV };
+        });
+
+        // Downsample to 30-minute intervals: 00:00, 00:30, ... 23:30
+        const sampled: TidePoint[] = [];
+        for (let m = 0; m < 24 * 60; m += 30) {
+          const closest = shifted.reduce(
+            (
+              prev: { totalMin: number; v: number },
+              curr: { totalMin: number; v: number }
+            ) => (Math.abs(curr.totalMin - m) < Math.abs(prev.totalMin - m) ? curr : prev)
+          );
+          const hh = String(Math.floor(m / 60)).padStart(2, "0");
+          const mm = String(m % 60).padStart(2, "0");
+          sampled.push({
+            time: `${hh}:${mm}`,
+            height: Math.round(closest.v * 10) / 10,
+            timestamp: `${dateStr} ${hh}:${mm}`,
+          });
+        }
+        tideCurve = sampled;
+      }
+    }
   } catch (err) {
-    console.warn("Using synthetic tides fallback:", err);
+    console.warn(`Using synthetic tides fallback for ${station.name}:`, err);
   }
 
-  if (tideCurve.length === 0) {
-    const synthetic = generateSyntheticTides(dateStr);
-    tideCurve = synthetic.curve;
-    tideEvents = synthetic.events;
+  if (tideCurve.length === 0 || tideEvents.length === 0) {
+    const synthetic = generateSyntheticTides(dateStr, station);
+    if (tideCurve.length === 0) tideCurve = synthetic.curve;
+    if (tideEvents.length === 0) tideEvents = synthetic.events;
   }
 
   // Determine current tide height and tendency based on current hour
@@ -219,7 +314,7 @@ export async function fetchEnvironmentalData(
     }
   }
 
-  // 2. Fetch Open-Meteo Sun & Wind
+  // 2. Fetch Open-Meteo Sun & Wind for the specific location
   let sunrise = "07:15";
   let sunset = "18:25";
   let daylightHours = "11h 10m";
@@ -229,7 +324,7 @@ export async function fetchEnvironmentalData(
 
   try {
     const weatherRes = await fetch(
-      `https://api.open-meteo.com/v1/forecast?latitude=37.81&longitude=-122.47&daily=sunrise,sunset,daylight_duration&hourly=wind_speed_10m,wind_direction_10m,temperature_2m&start_date=${dateStr}&end_date=${dateStr}&timezone=America%2FLos_Angeles`
+      `https://api.open-meteo.com/v1/forecast?latitude=${station.lat}&longitude=${station.lng}&daily=sunrise,sunset,daylight_duration&hourly=wind_speed_10m,wind_direction_10m,temperature_2m&start_date=${dateStr}&end_date=${dateStr}&timezone=America%2FLos_Angeles`
     );
 
     if (weatherRes.ok) {
@@ -271,8 +366,10 @@ export async function fetchEnvironmentalData(
 
   return {
     date: dateStr,
-    stationName: "San Francisco (Golden Gate Fort Point)",
-    coordinates: "37°48.6' N, 122°28.3' W",
+    stationId: station.id,
+    stationName: station.name,
+    stationShortName: station.shortName,
+    coordinates: station.coordinates,
     tideCurve,
     tideEvents,
     currentTideHeight,

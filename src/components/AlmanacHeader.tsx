@@ -14,12 +14,18 @@ import {
   Anchor,
   Clock,
 } from "lucide-react";
-import { AlmanacEnvironmentalData } from "@/lib/environmental";
+import {
+  AlmanacEnvironmentalData,
+  TideStationId,
+  TIDE_STATIONS,
+} from "@/lib/environmental";
 
 interface AlmanacHeaderProps {
   selectedDate: string; // "YYYY-MM-DD"
   todayStr: string;
   onDateChange: (date: string) => void;
+  selectedStation: TideStationId;
+  onStationChange: (station: TideStationId) => void;
   envData: AlmanacEnvironmentalData | null;
   loading: boolean;
 }
@@ -28,11 +34,14 @@ export function AlmanacHeader({
   selectedDate,
   todayStr,
   onDateChange,
+  selectedStation,
+  onStationChange,
   envData,
   loading,
 }: AlmanacHeaderProps) {
   const currentDateObj = selectedDate ? parseISO(selectedDate) : new Date(2026, 9, 21);
   const isToday = todayStr ? todayStr === selectedDate : false;
+  const stationConfig = TIDE_STATIONS[selectedStation] ?? TIDE_STATIONS["aquatic-park"];
 
   const handlePrevDay = () => {
     const prev = subDays(currentDateObj, 1);
@@ -65,8 +74,8 @@ export function AlmanacHeader({
             SF Bay Tidelog & Personal Journal
           </h1>
 
-          <p className="text-xs sm:text-sm text-[#5B6B7A] tracking-wider font-mono">
-            GOLDEN GATE STRAIT • 37°48.6&apos; N, 122°28.3&apos; W • TIDAL REFERENCE STATION #9414290
+          <p className="text-xs sm:text-sm text-[#5B6B7A] tracking-wider font-mono uppercase">
+            {stationConfig.name} • {stationConfig.coordinates} • NOAA STATION #{stationConfig.noaaStationId}
           </p>
 
           <div className="nautical-rule mt-3" />
@@ -103,6 +112,39 @@ export function AlmanacHeader({
               aria-label="Next Day"
             >
               <ChevronRight className="w-5 h-5" />
+            </button>
+          </div>
+
+          {/* Tidal Location Toggle (Aquatic Park default vs Crane Cove) */}
+          <div className="flex items-center gap-1.5 bg-[#EAE2D2] p-1 rounded-lg border border-[#D8CFBF]">
+            <span className="text-[10px] font-mono uppercase tracking-wider text-[#7A6B53] px-2 font-semibold hidden md:inline">
+              Location:
+            </span>
+            <button
+              type="button"
+              onClick={() => onStationChange("aquatic-park")}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-mono font-semibold transition-all ${
+                selectedStation === "aquatic-park"
+                  ? "bg-[#0A192F] text-[#F4EFE6] shadow-sm"
+                  : "text-[#5B6B7A] hover:text-[#0A192F] hover:bg-[#F2EDE2]"
+              }`}
+              title="Aquatic Park / Pier 41 (NOAA #9414305)"
+            >
+              <Waves className="w-3.5 h-3.5" />
+              <span>Aquatic Park</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => onStationChange("crane-cove")}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-mono font-semibold transition-all ${
+                selectedStation === "crane-cove"
+                  ? "bg-[#0A192F] text-[#F4EFE6] shadow-sm"
+                  : "text-[#5B6B7A] hover:text-[#0A192F] hover:bg-[#F2EDE2]"
+              }`}
+              title="Crane Cove / Potrero Point (NOAA #9414334)"
+            >
+              <Anchor className="w-3.5 h-3.5" />
+              <span>Crane Cove</span>
             </button>
           </div>
 
@@ -251,8 +293,8 @@ export function AlmanacHeader({
               </div>
             </div>
             <div className="mt-2 text-[11px] text-[#A0B0C0] font-mono border-t border-[#1E3A5F] pt-1.5 flex justify-between">
-              <span>Datum:</span>
-              <span className="text-[#DFC898]">MLLW (ft)</span>
+              <span>Station:</span>
+              <span className="text-[#DFC898]">{stationConfig.shortName}</span>
             </div>
           </div>
         </div>
