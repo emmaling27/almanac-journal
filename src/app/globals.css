@@ -1,26 +1,50 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #F7F4EE;
+  --foreground: #142334;
+  --parchment: #FDFBF7;
+  --card-bg: #FFFFFF;
+  --navy: #0A192F;
+  --navy-light: #1E3A5F;
+  --gold: #B38F4D;
+  --gold-light: #DFC898;
+  --border-sepia: #DFD7C7;
+  --border-dark: #2B3A4A;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --color-parchment: var(--parchment);
+  --color-navy: var(--navy);
+  --color-gold: var(--gold);
+  --font-serif: var(--font-garamond), Georgia, Cambria, serif;
+  --font-display: var(--font-cinzel), 'Times New Roman', serif;
+  --font-mono: var(--font-geist-mono), monospace;
 }
 
 body {
-  background: var(--background);
+  background-color: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-serif), Georgia, serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Nautical decorative rule */
+.nautical-rule {
+  height: 1px;
+  background: linear-gradient(90deg, transparent 0%, #B38F4D 50%, transparent 100%);
+}
+
+.tidelog-card {
+  background-color: #FAF8F2;
+  border: 1px solid #DFD7C7;
+  box-shadow: 0 2px 8px rgba(10, 25, 47, 0.04);
+}
+
+.tidelog-card-dark {
+  background-color: #0A192F;
+  border: 1px solid #1E3A5F;
+  color: #F7F4EE;
 }
