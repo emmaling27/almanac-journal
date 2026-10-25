@@ -8,7 +8,6 @@ import { format, subDays, parseISO } from "date-fns";
 import {
   TrendingUp,
   Award,
-  Sparkles,
 } from "lucide-react";
 
 interface GoalTrackerMatrixProps {
@@ -124,141 +123,137 @@ export function GoalTrackerMatrix({
       </div>
 
       {/* Grid Table */}
-      <div className="overflow-x-auto pb-2 touch-pan-x -mx-2 px-2 sm:mx-0 sm:px-0">
-        <table className="w-full text-left border-collapse">
-          <thead>
-            <tr>
-              <th className="py-2.5 px-3 text-xs font-mono uppercase tracking-wider text-[#7A6B53] border-b border-[#E3DAC9] min-w-[140px]">
-                Navigational Goal
-              </th>
-              {days.map((d) => {
-                const dateObj = parseISO(d);
-                const isSelected = d === selectedDate;
-                const isToday = d === todayStr;
+      {goals.length === 0 ? (
+        <div className="p-8 rounded bg-[#FAF8F2] border border-dashed border-[#D8CFBF] text-center text-xs font-mono text-[#7A6B53] space-y-1.5">
+          <p className="font-serif font-bold text-sm text-[#0A192F]">No Navigational Goals Plotted</p>
+          <p className="text-[11px] text-[#5B6B7A]">
+            Add goals in the log above to begin tracking your 14-day consistency, streaks, and personal rhythms.
+          </p>
+        </div>
+      ) : (
+        <div className="overflow-x-auto pb-2 touch-pan-x -mx-2 px-2 sm:mx-0 sm:px-0">
+          <table className="w-full text-left border-collapse">
+            <thead>
+              <tr>
+                <th className="py-2.5 px-3 text-xs font-mono uppercase tracking-wider text-[#7A6B53] border-b border-[#E3DAC9] min-w-[140px]">
+                  Navigational Goal
+                </th>
+                {days.map((d) => {
+                  const dateObj = parseISO(d);
+                  const isSelected = d === selectedDate;
+                  const isToday = d === todayStr;
 
-                return (
-                  <th
-                    key={d}
-                    onClick={() => onSelectDate(d)}
-                    className={`py-2 px-1 text-center cursor-pointer transition-colors border-b border-[#E3DAC9] ${
-                      isSelected
-                        ? "bg-[#0A192F] text-[#FAF7F0] rounded-t"
-                        : "hover:bg-[#EAE2D2] text-[#5B6B7A]"
-                    }`}
-                    title={`Click to open journal for ${d}`}
-                  >
-                    <div className="text-[10px] font-mono uppercase">
-                      {format(dateObj, "EEE")}
-                    </div>
-                    <div
-                      className={`text-xs font-mono font-bold ${
+                  return (
+                    <th
+                      key={d}
+                      onClick={() => onSelectDate(d)}
+                      className={`py-2 px-1 text-center cursor-pointer transition-colors border-b border-[#E3DAC9] ${
                         isSelected
-                          ? "text-[#DFC898]"
-                          : isToday
-                          ? "text-[#0A192F] underline decoration-[#B38F4D]"
-                          : "text-[#5B6B7A]"
+                          ? "bg-[#0A192F] text-[#FAF7F0] rounded-t"
+                          : "hover:bg-[#EAE2D2] text-[#5B6B7A]"
                       }`}
+                      title={`Click to open journal for ${d}`}
                     >
-                      {format(dateObj, "d")}
-                    </div>
-                  </th>
-                );
-              })}
-              <th className="py-2 px-3 text-right text-xs font-mono uppercase tracking-wider text-[#7A6B53] border-b border-[#E3DAC9]">
-                Streak
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {goals.map((g) => {
-              const stats = goalStats.find((s) => s.goalId === g._id);
-
-              return (
-                <tr
-                  key={g._id}
-                  className="hover:bg-[#F6F3EC]/70 transition-colors border-b border-[#EAE2D2]/60"
-                >
-                  <td className="py-3 px-3">
-                    <div className="flex items-center gap-2">
+                      <div className="text-[10px] font-mono uppercase">
+                        {format(dateObj, "EEE")}
+                      </div>
                       <div
-                        className="w-2.5 h-2.5 rounded-full"
-                        style={{ backgroundColor: g.color || "#0A192F" }}
-                      />
-                      <span className="font-serif font-bold text-sm text-[#0A192F]">
-                        {g.name}
-                      </span>
-                    </div>
-                  </td>
-
-                  {days.map((d) => {
-                    const log = logsMap.get(`${d}_${g._id}`);
-                    const isSelected = d === selectedDate;
-
-                    return (
-                      <td
-                        key={d}
-                        onClick={() => onSelectDate(d)}
-                        className={`py-2 px-1 text-center cursor-pointer transition-colors ${
-                          isSelected ? "bg-[#0A192F]/5" : ""
+                        className={`text-xs font-mono font-bold ${
+                          isSelected
+                            ? "text-[#DFC898]"
+                            : isToday
+                            ? "text-[#0A192F] underline decoration-[#B38F4D]"
+                            : "text-[#5B6B7A]"
                         }`}
                       >
-                        <div className="flex items-center justify-center">
-                          {log ? (
-                            log.met ? (
-                              <div
-                                className="w-5 h-5 rounded-full flex items-center justify-center text-white text-[10px] shadow-2xs hover:scale-125 transition-transform"
-                                style={{ backgroundColor: g.color || "#10B981" }}
-                                title={`${g.name} met on ${d}${
-                                  log.note ? `: "${log.note}"` : ""
-                                }`}
-                              >
-                                ✓
-                              </div>
+                        {format(dateObj, "d")}
+                      </div>
+                    </th>
+                  );
+                })}
+                <th className="py-2 px-3 text-right text-xs font-mono uppercase tracking-wider text-[#7A6B53] border-b border-[#E3DAC9]">
+                  Streak
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {goals.map((g) => {
+                const stats = goalStats.find((s) => s.goalId === g._id);
+
+                return (
+                  <tr
+                    key={g._id}
+                    className="hover:bg-[#F6F3EC]/70 transition-colors border-b border-[#EAE2D2]/60"
+                  >
+                    <td className="py-3 px-3">
+                      <div className="flex items-center gap-2">
+                        <div
+                          className="w-2.5 h-2.5 rounded-full"
+                          style={{ backgroundColor: g.color || "#0A192F" }}
+                        />
+                        <span className="font-serif font-bold text-sm text-[#0A192F]">
+                          {g.name}
+                        </span>
+                      </div>
+                    </td>
+
+                    {days.map((d) => {
+                      const log = logsMap.get(`${d}_${g._id}`);
+                      const isSelected = d === selectedDate;
+
+                      return (
+                        <td
+                          key={d}
+                          onClick={() => onSelectDate(d)}
+                          className={`py-2 px-1 text-center cursor-pointer transition-colors ${
+                            isSelected ? "bg-[#0A192F]/5" : ""
+                          }`}
+                        >
+                          <div className="flex items-center justify-center">
+                            {log ? (
+                              log.met ? (
+                                <div
+                                  className="w-5 h-5 rounded-full flex items-center justify-center text-white text-[10px] shadow-2xs hover:scale-125 transition-transform"
+                                  style={{ backgroundColor: g.color || "#10B981" }}
+                                  title={`${g.name} met on ${d}${
+                                    log.note ? `: "${log.note}"` : ""
+                                  }`}
+                                >
+                                  ✓
+                                </div>
+                              ) : (
+                                <div
+                                  className="w-5 h-5 rounded-full border border-gray-300 bg-gray-100 flex items-center justify-center text-gray-400 text-[10px] hover:scale-110 transition-transform"
+                                  title={`${g.name} not met on ${d}${
+                                    log.note ? `: "${log.note}"` : ""
+                                  }`}
+                                >
+                                  •
+                                </div>
+                              )
                             ) : (
                               <div
-                                className="w-5 h-5 rounded-full border border-gray-300 bg-gray-100 flex items-center justify-center text-gray-400 text-[10px] hover:scale-110 transition-transform"
-                                title={`${g.name} not met on ${d}${
-                                  log.note ? `: "${log.note}"` : ""
-                                }`}
-                              >
-                                •
-                              </div>
-                            )
-                          ) : (
-                            <div
-                              className="w-2 h-2 rounded-full bg-gray-200"
-                              title={`No log for ${d}`}
-                            />
-                          )}
-                        </div>
-                      </td>
-                    );
-                  })}
+                                className="w-2 h-2 rounded-full bg-gray-200"
+                                title={`No log for ${d}`}
+                              />
+                            )}
+                          </div>
+                        </td>
+                      );
+                    })}
 
-                  <td className="py-3 px-3 text-right">
-                    <span className="font-mono text-xs font-bold text-[#0A192F] bg-[#FAF7F0] px-2 py-0.5 rounded border border-[#E3DAC9]">
-                      {stats?.streak ?? 0}d
-                    </span>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
-
-      {/* AI Readiness & Explanation Callout */}
-      <div className="bg-[#FAF7F0] p-4 rounded-lg border border-[#E3DAC9] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs text-[#5B6B7A]">
-        <div className="flex items-center gap-2">
-          <Sparkles className="w-4 h-4 text-[#B38F4D] shrink-0" />
-          <span>
-            <strong className="text-[#0A192F] font-serif">
-              Relational Storage Schema Active:
-            </strong>{" "}
-            Every daily outcome and explanation is indexed by <code className="font-mono text-[11px] text-[#0A192F]">goalId</code>, enabling contextual pattern analysis against tides, lunar cycles, and personal rhythms.
-          </span>
+                    <td className="py-3 px-3 text-right">
+                      <span className="font-mono text-xs font-bold text-[#0A192F] bg-[#FAF7F0] px-2 py-0.5 rounded border border-[#E3DAC9]">
+                        {stats?.streak ?? 0}d
+                      </span>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
         </div>
-      </div>
+      )}
     </div>
   );
 }

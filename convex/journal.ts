@@ -63,13 +63,15 @@ export const getEntryByDate = query({
 export const saveEntry = mutation({
   args: {
     date: v.string(),
-    reflection: v.string(),
-    goalLogs: v.array(
-      v.object({
-        goalId: v.id("goals"),
-        met: v.boolean(),
-        note: v.string(),
-      })
+    reflection: v.optional(v.string()),
+    goalLogs: v.optional(
+      v.array(
+        v.object({
+          goalId: v.id("goals"),
+          met: v.boolean(),
+          note: v.string(),
+        })
+      )
     ),
   },
   returns: v.object({
@@ -96,47 +98,121 @@ export const saveEntry = mutation({
       entryId = await ctx.db.insert("journal_entries", {
         userId,
         date: args.date,
-        reflection: args.reflection,
+        reflection: args.reflection ?? "",
         createdAt: now,
         updatedAt: now,
       });
     } else {
-      await ctx.db.patch(entry._id, {
-        userId,
-        reflection: args.reflection,
+      const patchData: { updatedAt: number; reflection?: string } = {
         updatedAt: now,
-      });
+      };
+      if (args.reflection !== undefined) {
+        patchData.reflection = args.reflection;
+      }
+      await ctx.db.patch(entry._id, patchData);
     }
 
-    for (const logInput of args.goalLogs) {
-      const existingLog = await ctx.db
-        .query("goal_logs")
-        .withIndex("by_userId_and_date", (q) =>
-          q.eq("userId", userId).eq("date", args.date)
-        )
-        .filter((q) => q.eq(q.field("goalId"), logInput.goalId))
-        .first();
+    if (args.goalLogs) {
+      for (const logInput of args.goalLogs) {
+        const existingLog = await ctx.db
+          .query("goal_logs")
+          .withIndex("by_userId_and_date", (q) =>
+            q.eq("userId", userId).eq("date", args.date)
+          )
+          .filter((q) => q.eq(q.field("goalId"), logInput.goalId))
+          .first();
 
-      if (existingLog) {
-        await ctx.db.patch(existingLog._id, {
-          userId,
-          journalEntryId: entryId!,
-          met: logInput.met,
-          note: logInput.note,
-        });
-      } else {
-        await ctx.db.insert("goal_logs", {
-          userId,
-          journalEntryId: entryId!,
-          goalId: logInput.goalId,
-          date: args.date,
-          met: logInput.met,
-          note: logInput.note,
-        });
+        if (existingLog) {
+          await ctx.db.patch(existingLog._id, {
+            userId,
+            journalEntryId: entryId!,
+            met: logInput.met,
+            note: logInput.note,
+          });
+        } else {
+          await ctx.db.insert("goal_logs", {
+            userId,
+            journalEntryId: entryId!,
+            goalId: logInput.goalId,
+            date: args.date,
+            met: logInput.met,
+            note: logInput.note,
+          });
+        }
       }
     }
 
     return { entryId: entryId! };
+  },
+});
+
+export const setGoalLog = mutation({
+  args: {
+    date: v.string(),
+    goalId: v.id("goals"),
+    met: v.boolean(),
+    note: v.optional(v.string()),
+  },
+  returns: v.object({
+    entryId: v.id("journal_entries"),
+    logId: v.id("goal_logs"),
+  }),
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) {
+      throw new Error("Unauthorized: You must be signed in to save goal logs.");
+    }
+
+    const now = Date.now();
+
+    let entry = await ctx.db
+      .query("journal_entries")
+      .withIndex("by_userId_and_date", (q) =>
+        q.eq("userId", userId).eq("date", args.date)
+      )
+      .first();
+
+    let entryId = entry?._id;
+
+    if (!entry) {
+      entryId = await ctx.db.insert("journal_entries", {
+        userId,
+        date: args.date,
+        reflection: "",
+        createdAt: now,
+        updatedAt: now,
+      });
+    }
+
+    const existingLog = await ctx.db
+      .query("goal_logs")
+      .withIndex("by_userId_and_date", (q) =>
+        q.eq("userId", userId).eq("date", args.date)
+      )
+      .filter((q) => q.eq(q.field("goalId"), args.goalId))
+      .first();
+
+    let logId = existingLog?._id;
+
+    if (existingLog) {
+      await ctx.db.patch(existingLog._id, {
+        userId,
+        journalEntryId: entryId!,
+        met: args.met,
+        note: args.note !== undefined ? args.note : existingLog.note,
+      });
+    } else {
+      logId = await ctx.db.insert("goal_logs", {
+        userId,
+        journalEntryId: entryId!,
+        goalId: args.goalId,
+        date: args.date,
+        met: args.met,
+        note: args.note ?? "",
+      });
+    }
+
+    return { entryId: entryId!, logId: logId! };
   },
 });
 

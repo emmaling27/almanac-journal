@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useCallback, useRef, useEffect } from "react";
 import { useQuery, useMutation } from "convex/react";
 import { useConvexAuth } from "@convex-dev/auth/react";
 import { api } from "../../convex/_generated/api";
@@ -8,7 +8,6 @@ import { Id, Doc } from "../../convex/_generated/dataModel";
 import {
   CheckCircle2,
   XCircle,
-  Save,
   Settings,
   Sparkles,
   Feather,
@@ -16,6 +15,8 @@ import {
   Loader2,
   Lock,
   LogIn,
+  Compass,
+  Plus,
 } from "lucide-react";
 import { GoalManagerModal } from "./GoalManagerModal";
 
@@ -55,7 +56,7 @@ function JournalEditorForm({
     return logsMap;
   });
 
-  const [isSaving, setIsSaving] = useState(false);
+  const [saveStatus, setSaveStatus] = useState<"saved" | "saving" | "pending" | "error">("saved");
   const [lastSavedTime, setLastSavedTime] = useState<string | null>(() =>
     initialEntry?.updatedAt
       ? new Date(initialEntry.updatedAt).toLocaleTimeString([], {
@@ -66,64 +67,219 @@ function JournalEditorForm({
   );
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
-  const handleReflectionChange = (val: string) => {
-    setReflection(val);
-    setHasUnsavedChanges(true);
+  // Keep latest state in ref to avoid stale closures in timeouts and unmount cleanup
+  const latestDataRef = useRef({
+    date: selectedDate,
+    reflection,
+    goalLogs,
+    activeGoals,
+    hasUnsavedChanges: false,
+  });
+
+  latestDataRef.current = {
+    date: selectedDate,
+    reflection,
+    goalLogs,
+    activeGoals,
+    hasUnsavedChanges,
   };
 
-  const handleGoalToggle = (goalId: Id<"goals">, currentMet: boolean) => {
-    setGoalLogs((prev) => ({
-      ...prev,
-      [goalId]: {
-        met: !currentMet,
-        note: prev[goalId]?.note || "",
-      },
-    }));
-    setHasUnsavedChanges(true);
-  };
+  const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const isSavingRef = useRef(false);
+  const pendingSaveRef = useRef(false);
 
-  const handleGoalNoteChange = (goalId: Id<"goals">, note: string) => {
-    setGoalLogs((prev) => ({
-      ...prev,
-      [goalId]: {
-        met: prev[goalId]?.met ?? false,
-        note,
-      },
-    }));
-    setHasUnsavedChanges(true);
-  };
+  const performSave = useCallback(async () => {
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+      debounceTimerRef.current = null;
+    }
 
-  const handleSave = async () => {
+    if (isSavingRef.current) {
+      pendingSaveRef.current = true;
+      return;
+    }
+
+    const {
+      date,
+      reflection: currentReflection,
+      goalLogs: currentGoalLogs,
+      activeGoals: currentActiveGoals,
+      hasUnsavedChanges: isDirty,
+    } = latestDataRef.current;
+
+    if (!isDirty) {
+      return;
+    }
+
+    isSavingRef.current = true;
+    setSaveStatus("saving");
+
     try {
-      setIsSaving(true);
-      const formattedGoalLogs = activeGoals.map((g) => {
-        const current = goalLogs[g._id];
+      const goalIds = new Set<Id<"goals">>();
+      currentActiveGoals.forEach((g) => goalIds.add(g._id));
+      Object.keys(currentGoalLogs).forEach((id) => goalIds.add(id as Id<"goals">));
+
+      const formattedGoalLogs = Array.from(goalIds).map((goalId) => {
+        const current = currentGoalLogs[goalId];
         return {
-          goalId: g._id,
+          goalId,
           met: current?.met ?? false,
           note: current?.note ?? "",
         };
       });
 
       await saveEntryMutation({
-        date: selectedDate,
-        reflection,
+        date,
+        reflection: currentReflection,
         goalLogs: formattedGoalLogs,
       });
 
-      setHasUnsavedChanges(false);
-      setLastSavedTime(
-        new Date().toLocaleTimeString([], {
-          hour: "2-digit",
-          minute: "2-digit",
-        })
-      );
+      const nowTime = new Date().toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+      setLastSavedTime(nowTime);
+
+      if (!pendingSaveRef.current) {
+        setHasUnsavedChanges(false);
+        latestDataRef.current.hasUnsavedChanges = false;
+        setSaveStatus("saved");
+      }
     } catch (err) {
-      console.error("Failed to save journal entry:", err);
+      console.error("Failed to auto-save journal entry:", err);
+      setSaveStatus("error");
     } finally {
-      setIsSaving(false);
+      isSavingRef.current = false;
+      if (pendingSaveRef.current) {
+        pendingSaveRef.current = false;
+        performSave();
+      }
+    }
+  }, [saveEntryMutation]);
+
+  const scheduleDebouncedSave = useCallback(() => {
+    setHasUnsavedChanges(true);
+    latestDataRef.current.hasUnsavedChanges = true;
+    setSaveStatus("pending");
+
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+    }
+
+    debounceTimerRef.current = setTimeout(() => {
+      debounceTimerRef.current = null;
+      performSave();
+    }, 800);
+  }, [performSave]);
+
+  const handleReflectionChange = (val: string) => {
+    setReflection(val);
+    latestDataRef.current.reflection = val;
+    scheduleDebouncedSave();
+  };
+
+  const handleGoalToggle = (goalId: Id<"goals">, currentMet: boolean) => {
+    const updated = {
+      ...goalLogs,
+      [goalId]: {
+        met: !currentMet,
+        note: goalLogs[goalId]?.note || "",
+      },
+    };
+    setGoalLogs(updated);
+    setHasUnsavedChanges(true);
+    latestDataRef.current.goalLogs = updated;
+    latestDataRef.current.hasUnsavedChanges = true;
+
+    // Immediately save discrete goal toggle so updates reflect reactively
+    performSave();
+  };
+
+  const handleGoalNoteChange = (goalId: Id<"goals">, note: string) => {
+    const updated = {
+      ...goalLogs,
+      [goalId]: {
+        met: goalLogs[goalId]?.met ?? false,
+        note,
+      },
+    };
+    setGoalLogs(updated);
+    latestDataRef.current.goalLogs = updated;
+    scheduleDebouncedSave();
+  };
+
+  const handleBlur = () => {
+    if (latestDataRef.current.hasUnsavedChanges && !isSavingRef.current) {
+      performSave();
     }
   };
+
+  // Sync external changes when user is not actively editing
+  useEffect(() => {
+    if (!latestDataRef.current.hasUnsavedChanges && !isSavingRef.current) {
+      if (initialEntry) {
+        setReflection(initialEntry.reflection);
+        if (initialEntry.updatedAt) {
+          setLastSavedTime(
+            new Date(initialEntry.updatedAt).toLocaleTimeString([], {
+              hour: "2-digit",
+              minute: "2-digit",
+            })
+          );
+        }
+      }
+    }
+  }, [initialEntry]);
+
+  useEffect(() => {
+    if (!latestDataRef.current.hasUnsavedChanges && !isSavingRef.current) {
+      const logsMap: Record<string, { met: boolean; note: string }> = {};
+      for (const log of initialGoalLogs) {
+        logsMap[log.goalId] = {
+          met: log.met,
+          note: log.note,
+        };
+      }
+      setGoalLogs(logsMap);
+    }
+  }, [initialGoalLogs]);
+
+  // Flush unsaved changes on unmount or date change
+  useEffect(() => {
+    return () => {
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
+      if (latestDataRef.current.hasUnsavedChanges) {
+        const {
+          date,
+          reflection: currentReflection,
+          goalLogs: currentGoalLogs,
+          activeGoals: currentActiveGoals,
+        } = latestDataRef.current;
+        const goalIds = new Set<Id<"goals">>();
+        currentActiveGoals.forEach((g) => goalIds.add(g._id));
+        Object.keys(currentGoalLogs).forEach((id) => goalIds.add(id as Id<"goals">));
+
+        const formattedGoalLogs = Array.from(goalIds).map((goalId) => {
+          const current = currentGoalLogs[goalId];
+          return {
+            goalId,
+            met: current?.met ?? false,
+            note: current?.note ?? "",
+          };
+        });
+
+        saveEntryMutation({
+          date,
+          reflection: currentReflection,
+          goalLogs: formattedGoalLogs,
+        }).catch((err) => {
+          console.error("Failed to flush journal entry on unmount:", err);
+        });
+      }
+    };
+  }, [saveEntryMutation]);
 
   return (
     <div className="space-y-6">
@@ -136,36 +292,52 @@ function JournalEditorForm({
           </h2>
         </div>
 
-        <div className="flex items-center gap-3">
-          {lastSavedTime && !hasUnsavedChanges && (
-            <span className="text-xs font-mono text-[#5B6B7A] flex items-center gap-1">
-              <Check className="w-3.5 h-3.5 text-emerald-600" />
-              Recorded at {lastSavedTime}
+        <div className="flex items-center gap-2.5">
+          {saveStatus === "saving" && (
+            <span className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-mono text-[#7A6B53] bg-[#EAE2D2]/60 rounded border border-[#D8CFBF]">
+              <Loader2 className="w-3.5 h-3.5 animate-spin text-[#B38F4D]" />
+              <span>Inscribing...</span>
             </span>
           )}
 
-          {hasUnsavedChanges && (
-            <span className="text-xs font-mono text-amber-700 bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
-              Unsaved changes
+          {saveStatus === "pending" && (
+            <button
+              type="button"
+              onClick={() => performSave()}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-mono text-amber-900 bg-amber-50 rounded border border-amber-200 hover:bg-amber-100 transition-colors cursor-pointer"
+              title="Auto-saving in a moment (click to save immediately)"
+            >
+              <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+              <span>Saving changes...</span>
+            </button>
+          )}
+
+          {saveStatus === "error" && (
+            <button
+              type="button"
+              onClick={() => performSave()}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-mono text-red-700 bg-red-50 rounded border border-red-300 hover:bg-red-100 transition-colors cursor-pointer"
+              title="Click to retry saving"
+            >
+              <span>Save failed &bull; Click to retry</span>
+            </button>
+          )}
+
+          {saveStatus === "saved" && (
+            <span className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-mono text-[#5B6B7A] bg-[#FAF7F0] rounded border border-[#E3DAC9]">
+              <Check className="w-3.5 h-3.5 text-emerald-600" />
+              <span>{lastSavedTime ? `Saved at ${lastSavedTime}` : "Auto-saved"}</span>
             </span>
           )}
 
           <button
+            type="button"
             onClick={onOpenGoalModal}
             className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-mono rounded border border-[#D8CFBF] hover:bg-[#EAE2D2] text-[#0A192F] transition-colors"
             title="Configure tracking goals"
           >
             <Settings className="w-3.5 h-3.5 text-[#7A6B53]" />
             <span>Manage Goals</span>
-          </button>
-
-          <button
-            onClick={handleSave}
-            disabled={isSaving}
-            className="flex items-center gap-1.5 px-4 py-1.5 text-xs font-mono font-semibold uppercase tracking-wider rounded bg-[#0A192F] hover:bg-[#1E3A5F] text-[#FAF7F0] transition-colors disabled:opacity-50 shadow-xs"
-          >
-            <Save className="w-3.5 h-3.5 text-[#DFC898]" />
-            <span>{isSaving ? "Inscribing..." : "Save Log"}</span>
           </button>
         </div>
       </div>
@@ -183,6 +355,7 @@ function JournalEditorForm({
           <textarea
             value={reflection}
             onChange={(e) => handleReflectionChange(e.target.value)}
+            onBlur={handleBlur}
             placeholder="Record the currents of the day... What stirred your thoughts? How did the weather or rhythm of the Bay meet you today? Note any shifts in tide, spirit, or project work."
             rows={7}
             className="w-full p-4 rounded-md bg-[#FDFBF7] text-[#142334] font-serif text-base leading-relaxed border border-[#DFD7C7] placeholder:text-[#9A8F7D] focus:outline-none focus:ring-1 focus:ring-[#B38F4D] resize-y shadow-inner"
@@ -204,92 +377,117 @@ function JournalEditorForm({
           </span>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {activeGoals.map((goal) => {
-            const currentLog = goalLogs[goal._id] || { met: false, note: "" };
-            const isMet = currentLog.met;
+        {activeGoals.length === 0 ? (
+          <div className="tidelog-card rounded-lg p-6 sm:p-8 text-center space-y-4 border border-dashed border-[#C8BEAE] bg-[#FAF8F3]">
+            <div className="w-10 h-10 mx-auto rounded-full bg-[#EAE2D2] flex items-center justify-center text-[#B38F4D]">
+              <Compass className="w-5 h-5" />
+            </div>
+            <div className="max-w-md mx-auto space-y-1.5">
+              <h4 className="font-serif font-bold text-base text-[#0A192F]">
+                No Personal Goals Plotted Yet
+              </h4>
+              <p className="text-xs font-mono text-[#5B6B7A] leading-relaxed">
+                Add your own goals, habits, or creative intentions to track alongside the daily tidal and lunar rhythms.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={onOpenGoalModal}
+              className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-mono font-semibold uppercase tracking-wider rounded bg-[#0A192F] hover:bg-[#1E3A5F] text-[#FAF7F0] transition-colors shadow-xs cursor-pointer"
+            >
+              <Plus className="w-3.5 h-3.5 text-[#DFC898]" />
+              <span>Plot Your First Goal</span>
+            </button>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {activeGoals.map((goal) => {
+              const currentLog = goalLogs[goal._id] || { met: false, note: "" };
+              const isMet = currentLog.met;
 
-            return (
-              <div
-                key={goal._id}
-                className={`tidelog-card rounded-lg p-4 flex flex-col justify-between transition-all border ${
-                  isMet
-                    ? "border-emerald-700/40 bg-[#F6FBF7]"
-                    : "border-[#DFD7C7] bg-[#FAF8F2]"
-                }`}
-              >
-                <div className="space-y-3">
-                  {/* Goal Header & Yes/No Toggle */}
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-2">
-                        <div
-                          className="w-3 h-3 rounded-full"
-                          style={{ backgroundColor: goal.color || "#0A192F" }}
-                        />
-                        <h4 className="font-serif font-bold text-base text-[#0A192F]">
-                          {goal.name}
-                        </h4>
+              return (
+                <div
+                  key={goal._id}
+                  className={`tidelog-card rounded-lg p-4 flex flex-col justify-between transition-all border ${
+                    isMet
+                      ? "border-emerald-700/40 bg-[#F6FBF7]"
+                      : "border-[#DFD7C7] bg-[#FAF8F2]"
+                  }`}
+                >
+                  <div className="space-y-3">
+                    {/* Goal Header & Yes/No Toggle */}
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <div
+                            className="w-3 h-3 rounded-full"
+                            style={{ backgroundColor: goal.color || "#0A192F" }}
+                          />
+                          <h4 className="font-serif font-bold text-base text-[#0A192F]">
+                            {goal.name}
+                          </h4>
+                        </div>
+                        {goal.description && (
+                          <p className="text-xs text-[#5B6B7A] leading-snug">
+                            {goal.description}
+                          </p>
+                        )}
                       </div>
-                      {goal.description && (
-                        <p className="text-xs text-[#5B6B7A] leading-snug">
-                          {goal.description}
-                        </p>
-                      )}
+
+                      <button
+                        type="button"
+                        onClick={() => handleGoalToggle(goal._id, isMet)}
+                        className={`px-3 py-1 text-xs font-mono font-bold uppercase tracking-wider rounded-full flex items-center gap-1.5 transition-all shadow-2xs ${
+                          isMet
+                            ? "bg-emerald-800 text-emerald-50 hover:bg-emerald-900"
+                            : "bg-[#EAE2D2] text-[#5B6B7A] hover:bg-[#DED4C0]"
+                        }`}
+                      >
+                        {isMet ? (
+                          <>
+                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-200" />
+                            <span>Met</span>
+                          </>
+                        ) : (
+                          <>
+                            <XCircle className="w-3.5 h-3.5 opacity-60" />
+                            <span>Not Yet</span>
+                          </>
+                        )}
+                      </button>
                     </div>
 
-                    <button
-                      type="button"
-                      onClick={() => handleGoalToggle(goal._id, isMet)}
-                      className={`px-3 py-1 text-xs font-mono font-bold uppercase tracking-wider rounded-full flex items-center gap-1.5 transition-all shadow-2xs ${
-                        isMet
-                          ? "bg-emerald-800 text-emerald-50 hover:bg-emerald-900"
-                          : "bg-[#EAE2D2] text-[#5B6B7A] hover:bg-[#DED4C0]"
-                      }`}
-                    >
-                      {isMet ? (
-                        <>
-                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-200" />
-                          <span>Met</span>
-                        </>
-                      ) : (
-                        <>
-                          <XCircle className="w-3.5 h-3.5 opacity-60" />
-                          <span>Not Yet</span>
-                        </>
-                      )}
-                    </button>
+                    {/* Context / Explanation Note */}
+                    <div className="space-y-1 pt-1">
+                      <label className="block text-[11px] font-mono text-[#7A6B53] uppercase tracking-wider">
+                        Observations & Context (for AI analysis)
+                      </label>
+                      <textarea
+                        value={currentLog.note}
+                        onChange={(e) =>
+                          handleGoalNoteChange(goal._id, e.target.value)
+                        }
+                        onBlur={handleBlur}
+                        placeholder={
+                          isMet
+                            ? `Detail how you practiced ${goal.name.toLowerCase()} today...`
+                            : `What hindered or shifted your focus from ${goal.name.toLowerCase()}?`
+                        }
+                        rows={3}
+                        className="w-full p-2.5 text-base sm:text-xs font-serif bg-white rounded border border-[#DFD7C7] text-[#0A192F] focus:outline-none focus:ring-1 focus:ring-[#B38F4D] resize-none placeholder:text-[#9A8F7D]"
+                      />
+                    </div>
                   </div>
 
-                  {/* Context / Explanation Note */}
-                  <div className="space-y-1 pt-1">
-                    <label className="block text-[11px] font-mono text-[#7A6B53] uppercase tracking-wider">
-                      Observations & Context (for AI analysis)
-                    </label>
-                    <textarea
-                      value={currentLog.note}
-                      onChange={(e) =>
-                        handleGoalNoteChange(goal._id, e.target.value)
-                      }
-                      placeholder={
-                        isMet
-                          ? `Detail how you practiced ${goal.name.toLowerCase()} today...`
-                          : `What hindered or shifted your focus from ${goal.name.toLowerCase()}?`
-                      }
-                      rows={3}
-                      className="w-full p-2.5 text-base sm:text-xs font-serif bg-white rounded border border-[#DFD7C7] text-[#0A192F] focus:outline-none focus:ring-1 focus:ring-[#B38F4D] resize-none placeholder:text-[#9A8F7D]"
-                    />
+                  <div className="mt-2 pt-2 border-t border-[#EAE2D2] flex justify-between items-center text-[10px] font-mono text-[#7A6B53]">
+                    <span>Status: {isMet ? "Recorded" : "Pending"}</span>
+                    <span className="italic">{goal.name}</span>
                   </div>
                 </div>
-
-                <div className="mt-2 pt-2 border-t border-[#EAE2D2] flex justify-between items-center text-[10px] font-mono text-[#7A6B53]">
-                  <span>Status: {isMet ? "Recorded" : "Pending"}</span>
-                  <span className="italic">{goal.name}</span>
-                </div>
-              </div>
-            );
-          })}
-        </div>
+              );
+            })}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -300,14 +498,7 @@ export function JournalEditor({ selectedDate, onOpenAuth }: JournalEditorProps) 
   const rawGoals = useQuery(api.goals.getGoals, { onlyActive: true });
   const activeGoals = useMemo(() => rawGoals || [], [rawGoals]);
   const entryData = useQuery(api.journal.getEntryByDate, { date: selectedDate });
-  const initDefaults = useMutation(api.goals.initDefaultGoals);
   const [isGoalModalOpen, setIsGoalModalOpen] = useState(false);
-
-  React.useEffect(() => {
-    if (isAuthenticated && rawGoals !== undefined && rawGoals.length === 0) {
-      initDefaults().catch(console.error);
-    }
-  }, [isAuthenticated, rawGoals, initDefaults]);
 
   if (authLoading) {
     return (
@@ -358,7 +549,7 @@ export function JournalEditor({ selectedDate, onOpenAuth }: JournalEditorProps) 
   return (
     <>
       <JournalEditorForm
-        key={`${selectedDate}_${entryData.entry?._id ?? "none"}`}
+        key={selectedDate}
         selectedDate={selectedDate}
         initialEntry={entryData.entry}
         initialGoalLogs={entryData.goalLogs}

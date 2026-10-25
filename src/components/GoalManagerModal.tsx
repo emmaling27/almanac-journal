@@ -4,7 +4,7 @@ import React, { useState } from "react";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { Id } from "../../convex/_generated/dataModel";
-import { X, Plus, Check, Compass } from "lucide-react";
+import { X, Plus, Check, Compass, Trash2 } from "lucide-react";
 
 interface GoalManagerModalProps {
   isOpen: boolean;
@@ -24,6 +24,7 @@ export function GoalManagerModal({ isOpen, onClose }: GoalManagerModalProps) {
   const goals = useQuery(api.goals.getGoals, {}) || [];
   const addGoal = useMutation(api.goals.addGoal);
   const toggleGoalActive = useMutation(api.goals.toggleGoalActive);
+  const deleteGoal = useMutation(api.goals.deleteGoal);
 
   const [newGoalName, setNewGoalName] = useState("");
   const [newGoalDesc, setNewGoalDesc] = useState("");
@@ -62,6 +63,14 @@ export function GoalManagerModal({ isOpen, onClose }: GoalManagerModalProps) {
     }
   };
 
+  const handleDelete = async (id: Id<"goals">) => {
+    try {
+      await deleteGoal({ id });
+    } catch (err) {
+      console.error("Failed to delete goal:", err);
+    }
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-xs">
       <div className="bg-[#FAF7F0] border-2 border-[#B38F4D] rounded-xl max-w-lg w-full p-6 shadow-2xl space-y-6 text-[#0A192F]">
@@ -82,45 +91,71 @@ export function GoalManagerModal({ isOpen, onClose }: GoalManagerModalProps) {
 
         {/* Existing Goals List */}
         <div className="space-y-3">
-          <h4 className="text-xs font-mono uppercase tracking-wider text-[#7A6B53]">
-            Active Tracking List ({goals.length})
-          </h4>
-          <div className="max-h-48 overflow-y-auto space-y-2 pr-1">
-            {goals.map((g) => (
-              <div
-                key={g._id}
-                className="flex items-center justify-between p-2.5 rounded bg-white border border-[#E3DAC9]"
-              >
-                <div className="flex items-center gap-2.5">
-                  <div
-                    className="w-3.5 h-3.5 rounded-full"
-                    style={{ backgroundColor: g.color || "#0A192F" }}
-                  />
-                  <div>
-                    <span className="font-serif font-semibold text-sm text-[#0A192F]">
-                      {g.name}
-                    </span>
-                    {g.description && (
-                      <p className="text-xs text-[#5B6B7A] line-clamp-1">
-                        {g.description}
-                      </p>
-                    )}
+          <div className="flex items-center justify-between">
+            <h4 className="text-xs font-mono uppercase tracking-wider text-[#7A6B53]">
+              Your Personal Goals ({goals.length})
+            </h4>
+            <span className="text-[11px] font-mono text-[#9A8F7D]">
+              Active goals sync to your daily log
+            </span>
+          </div>
+
+          {goals.length === 0 ? (
+            <div className="p-4 rounded bg-white/70 border border-dashed border-[#D8CFBF] text-center text-xs font-mono text-[#7A6B53] space-y-1">
+              <p className="font-semibold text-[#0A192F]">No goals created yet</p>
+              <p className="text-[11px] text-[#5B6B7A]">
+                Use the form below to plot your personal tracking intentions (e.g. Cold Plunge, Morning Run, Creative Writing, Deep Reading).
+              </p>
+            </div>
+          ) : (
+            <div className="max-h-48 overflow-y-auto space-y-2 pr-1">
+              {goals.map((g) => (
+                <div
+                  key={g._id}
+                  className="flex items-center justify-between p-2.5 rounded bg-white border border-[#E3DAC9]"
+                >
+                  <div className="flex items-center gap-2.5 min-w-0 pr-2">
+                    <div
+                      className="w-3.5 h-3.5 rounded-full shrink-0"
+                      style={{ backgroundColor: g.color || "#0A192F" }}
+                    />
+                    <div className="min-w-0">
+                      <span className="font-serif font-semibold text-sm text-[#0A192F] truncate block">
+                        {g.name}
+                      </span>
+                      {g.description && (
+                        <p className="text-xs text-[#5B6B7A] line-clamp-1">
+                          {g.description}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => handleToggle(g._id, g.active)}
+                      className={`px-2.5 py-1 text-xs font-mono rounded font-semibold transition-colors cursor-pointer ${
+                        g.active
+                          ? "bg-[#EBF3FC] text-[#0E3D75] border border-[#B7D4F5]"
+                          : "bg-gray-100 text-gray-500 border border-gray-200"
+                      }`}
+                    >
+                      {g.active ? "Active" : "Archived"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleDelete(g._id)}
+                      className="p-1.5 rounded text-[#9A8F7D] hover:text-red-700 hover:bg-red-50 transition-colors cursor-pointer"
+                      title="Delete goal"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
                   </div>
                 </div>
-
-                <button
-                  onClick={() => handleToggle(g._id, g.active)}
-                  className={`px-2.5 py-1 text-xs font-mono rounded font-semibold transition-colors ${
-                    g.active
-                      ? "bg-[#EBF3FC] text-[#0E3D75] border border-[#B7D4F5]"
-                      : "bg-gray-100 text-gray-500 border border-gray-200"
-                  }`}
-                >
-                  {g.active ? "Active" : "Archived"}
-                </button>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Add New Goal Form */}
