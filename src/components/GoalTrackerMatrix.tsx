@@ -2,6 +2,7 @@
 
 import React, { useMemo } from "react";
 import { useQuery } from "convex/react";
+import { useConvexAuth } from "@convex-dev/auth/react";
 import { api } from "../../convex/_generated/api";
 import { format, subDays, parseISO } from "date-fns";
 import {
@@ -21,11 +22,16 @@ export function GoalTrackerMatrix({
   todayStr,
   onSelectDate,
 }: GoalTrackerMatrixProps) {
+  const { isAuthenticated } = useConvexAuth();
   const rawGoals = useQuery(api.goals.getGoals, {});
   const rawLogs = useQuery(api.journal.getAllGoalLogs, {});
 
   const goals = useMemo(() => rawGoals || [], [rawGoals]);
   const allLogs = useMemo(() => rawLogs || [], [rawLogs]);
+
+  if (!isAuthenticated) {
+    return null;
+  }
 
   // Generate last 14 days dates array ending today (or selected date)
   const days = useMemo(() => {

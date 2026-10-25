@@ -2,6 +2,7 @@
 
 import React, { useState, useMemo } from "react";
 import { useQuery, useMutation } from "convex/react";
+import { useConvexAuth } from "@convex-dev/auth/react";
 import { api } from "../../convex/_generated/api";
 import { Id, Doc } from "../../convex/_generated/dataModel";
 import {
@@ -13,11 +14,14 @@ import {
   Feather,
   Check,
   Loader2,
+  Lock,
+  LogIn,
 } from "lucide-react";
 import { GoalManagerModal } from "./GoalManagerModal";
 
 interface JournalEditorProps {
   selectedDate: string; // "YYYY-MM-DD"
+  onOpenAuth?: () => void;
 }
 
 interface JournalEditorFormProps {
@@ -291,11 +295,56 @@ function JournalEditorForm({
   );
 }
 
-export function JournalEditor({ selectedDate }: JournalEditorProps) {
+export function JournalEditor({ selectedDate, onOpenAuth }: JournalEditorProps) {
+  const { isAuthenticated, isLoading: authLoading } = useConvexAuth();
   const rawGoals = useQuery(api.goals.getGoals, { onlyActive: true });
   const activeGoals = useMemo(() => rawGoals || [], [rawGoals]);
   const entryData = useQuery(api.journal.getEntryByDate, { date: selectedDate });
+  const initDefaults = useMutation(api.goals.initDefaultGoals);
   const [isGoalModalOpen, setIsGoalModalOpen] = useState(false);
+
+  React.useEffect(() => {
+    if (isAuthenticated && rawGoals !== undefined && rawGoals.length === 0) {
+      initDefaults().catch(console.error);
+    }
+  }, [isAuthenticated, rawGoals, initDefaults]);
+
+  if (authLoading) {
+    return (
+      <div className="tidelog-card rounded-lg p-8 text-center text-xs font-mono text-[#7A6B53] flex items-center justify-center gap-2">
+        <Loader2 className="w-4 h-4 animate-spin text-[#B38F4D]" />
+        <span>Verifying journal credentials...</span>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return (
+      <div className="tidelog-card rounded-lg p-8 sm:p-12 shadow-sm border border-[#D8CFBF] text-center space-y-4 bg-[#FAF7F0]">
+        <div className="w-12 h-12 mx-auto rounded-full bg-[#EAE2D2] flex items-center justify-center text-[#B38F4D] border border-[#D8CFBF]">
+          <Lock className="w-6 h-6" />
+        </div>
+        <div className="max-w-md mx-auto space-y-2">
+          <h3 className="text-xl font-serif font-bold text-[#0A192F]">
+            Captain&apos;s Log & Goals Locked
+          </h3>
+          <p className="text-xs font-mono text-[#5B6B7A] leading-relaxed">
+            Personal reflections and daily navigational goals are private to your journal. Sign in or create an account to record your reflections, log daily habits, and sync across your devices.
+          </p>
+        </div>
+        {onOpenAuth && (
+          <button
+            type="button"
+            onClick={onOpenAuth}
+            className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#0A192F] hover:bg-[#1E3A5F] text-[#FAF7F0] text-xs font-mono font-semibold uppercase tracking-wider rounded transition-colors shadow-sm cursor-pointer"
+          >
+            <LogIn className="w-4 h-4 text-[#DFC898]" />
+            <span>Sign In / Create Account</span>
+          </button>
+        )}
+      </div>
+    );
+  }
 
   if (entryData === undefined) {
     return (

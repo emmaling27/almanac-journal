@@ -25,7 +25,6 @@ import {
 import { useConvexAuth, useAuthActions } from "@convex-dev/auth/react";
 import { useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
-import { AuthModal } from "@/components/AuthModal";
 
 interface AlmanacHeaderProps {
   selectedDate: string; // "YYYY-MM-DD"
@@ -33,6 +32,7 @@ interface AlmanacHeaderProps {
   onDateChange: (date: string) => void;
   selectedStation: TideStationId;
   onStationChange: (station: TideStationId) => void;
+  onOpenAuth: () => void;
   envData: AlmanacEnvironmentalData | null;
   loading: boolean;
 }
@@ -43,6 +43,7 @@ export function AlmanacHeader({
   onDateChange,
   selectedStation,
   onStationChange,
+  onOpenAuth,
   envData,
   loading,
 }: AlmanacHeaderProps) {
@@ -53,7 +54,6 @@ export function AlmanacHeader({
   const { isAuthenticated } = useConvexAuth();
   const { signOut } = useAuthActions();
   const currentUser = useQuery(api.settings.currentUser);
-  const [isAuthOpen, setIsAuthOpen] = useState(false);
 
   const handlePrevDay = () => {
     const prev = subDays(currentDateObj, 1);
@@ -108,7 +108,7 @@ export function AlmanacHeader({
             ) : (
               <button
                 type="button"
-                onClick={() => setIsAuthOpen(true)}
+                onClick={onOpenAuth}
                 className="flex items-center gap-1.5 px-3 py-1 rounded bg-[#0A192F] hover:bg-[#142C4B] text-[#F4EFE6] text-xs font-semibold uppercase tracking-wider transition-colors shadow-xs"
               >
                 <LogIn className="w-3.5 h-3.5 text-[#DFC898]" />
@@ -355,8 +355,6 @@ export function AlmanacHeader({
           </div>
         </div>
       </div>
-
-      <AuthModal isOpen={isAuthOpen} onClose={() => setIsAuthOpen(false)} />
     </header>
   );
 }

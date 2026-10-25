@@ -19,13 +19,20 @@ export const getGoals = query({
     })
   ),
   handler: async (ctx, args) => {
-    if (args.onlyActive) {
-      return await ctx.db
-        .query("goals")
-        .withIndex("by_active", (q) => q.eq("active", true))
-        .collect();
+    const userId = await getAuthUserId(ctx);
+    if (!userId) {
+      return [];
     }
-    return await ctx.db.query("goals").collect();
+
+    const userGoals = await ctx.db
+      .query("goals")
+      .withIndex("by_userId", (q) => q.eq("userId", userId))
+      .collect();
+
+    if (args.onlyActive) {
+      return userGoals.filter((g) => g.active);
+    }
+    return userGoals;
   },
 });
 
@@ -37,13 +44,16 @@ export const addGoal = mutation({
   },
   returns: v.id("goals"),
   handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) {
+      throw new Error("Unauthorized: You must be signed in to add goals.");
+    }
     const trimmed = args.name.trim();
     if (!trimmed) {
       throw new Error("Goal name cannot be empty");
     }
-    const userId = await getAuthUserId(ctx);
     return await ctx.db.insert("goals", {
-      userId: userId ?? undefined,
+      userId,
       name: trimmed,
       active: true,
       color: args.color,
@@ -60,6 +70,14 @@ export const toggleGoalActive = mutation({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) {
+      throw new Error("Unauthorized: You must be signed in to modify goals.");
+    }
+    const goal = await ctx.db.get(args.id);
+    if (!goal || goal.userId !== userId) {
+      throw new Error("Unauthorized: Goal not found or access denied.");
+    }
     await ctx.db.patch(args.id, { active: args.active });
     return null;
   },
@@ -69,7 +87,14 @@ export const initDefaultGoals = mutation({
   args: {},
   returns: v.array(v.id("goals")),
   handler: async (ctx) => {
-    const existing = await ctx.db.query("goals").take(1);
+    const userId = await getAuthUserId(ctx);
+    if (!userId) {
+      return [];
+    }
+    const existing = await ctx.db
+      .query("goals")
+      .withIndex("by_userId", (q) => q.eq("userId", userId))
+      .take(1);
     if (existing.length > 0) {
       return [];
     }
@@ -81,6 +106,7 @@ export const initDefaultGoals = mutation({
     const ids = [];
     for (const g of defaults) {
       const id = await ctx.db.insert("goals", {
+        userId,
         name: g.name,
         active: true,
         color: g.color,

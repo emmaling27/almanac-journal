@@ -16,6 +16,7 @@ import {
 import { useConvexAuth } from "@convex-dev/auth/react";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
+import { AuthModal } from "@/components/AuthModal";
 import { Anchor, Compass, Waves, Loader2 } from "lucide-react";
 
 function subscribe() {
@@ -35,6 +36,7 @@ function TidelogApp() {
   const [userSelectedDate, setUserSelectedDate] = useState<string | null>(null);
   const selectedDate = userSelectedDate ?? clientToday;
 
+  const [isAuthOpen, setIsAuthOpen] = useState(false);
   const { isAuthenticated } = useConvexAuth();
   const userSettings = useQuery(api.settings.getSettings);
   const setTideStation = useMutation(api.settings.setTideStation);
@@ -132,6 +134,7 @@ function TidelogApp() {
         onDateChange={setUserSelectedDate}
         selectedStation={selectedStation}
         onStationChange={handleStationChange}
+        onOpenAuth={() => setIsAuthOpen(true)}
         envData={envData}
         loading={loadingEnv}
       />
@@ -159,7 +162,10 @@ function TidelogApp() {
         )}
 
         {/* Section 2: Captain's Log & Goals Editor */}
-        <JournalEditor selectedDate={selectedDate} />
+        <JournalEditor
+          selectedDate={selectedDate}
+          onOpenAuth={() => setIsAuthOpen(true)}
+        />
 
         {/* Section 3: 14-Day Trajectory Habit Matrix */}
         <GoalTrackerMatrix
@@ -168,6 +174,8 @@ function TidelogApp() {
           onSelectDate={setUserSelectedDate}
         />
       </main>
+
+      <AuthModal isOpen={isAuthOpen} onClose={() => setIsAuthOpen(false)} />
 
       {/* Maritime Footer */}
       <footer className="border-t border-[#D8CFBF] bg-[#F2EDE2] py-8 px-4 text-center text-xs font-mono text-[#5B6B7A] mt-12">

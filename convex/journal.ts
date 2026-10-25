@@ -32,9 +32,16 @@ export const getEntryByDate = query({
     goalLogs: v.array(goalLogValidator),
   }),
   handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) {
+      return { entry: null, goalLogs: [] };
+    }
+
     const entry = await ctx.db
       .query("journal_entries")
-      .withIndex("by_date", (q) => q.eq("date", args.date))
+      .withIndex("by_userId_and_date", (q) =>
+        q.eq("userId", userId).eq("date", args.date)
+      )
       .first();
 
     if (!entry) {
@@ -69,19 +76,25 @@ export const saveEntry = mutation({
     entryId: v.id("journal_entries"),
   }),
   handler: async (ctx, args) => {
-    const now = Date.now();
     const userId = await getAuthUserId(ctx);
+    if (!userId) {
+      throw new Error("Unauthorized: You must be signed in to save journal entries.");
+    }
+
+    const now = Date.now();
 
     const entry = await ctx.db
       .query("journal_entries")
-      .withIndex("by_date", (q) => q.eq("date", args.date))
+      .withIndex("by_userId_and_date", (q) =>
+        q.eq("userId", userId).eq("date", args.date)
+      )
       .first();
 
     let entryId = entry?._id;
 
     if (!entry) {
       entryId = await ctx.db.insert("journal_entries", {
-        userId: userId ?? undefined,
+        userId,
         date: args.date,
         reflection: args.reflection,
         createdAt: now,
@@ -89,7 +102,7 @@ export const saveEntry = mutation({
       });
     } else {
       await ctx.db.patch(entry._id, {
-        ...(userId && !entry.userId ? { userId } : {}),
+        userId,
         reflection: args.reflection,
         updatedAt: now,
       });
@@ -98,21 +111,22 @@ export const saveEntry = mutation({
     for (const logInput of args.goalLogs) {
       const existingLog = await ctx.db
         .query("goal_logs")
-        .withIndex("by_goalId_and_date", (q) =>
-          q.eq("goalId", logInput.goalId).eq("date", args.date)
+        .withIndex("by_userId_and_date", (q) =>
+          q.eq("userId", userId).eq("date", args.date)
         )
+        .filter((q) => q.eq(q.field("goalId"), logInput.goalId))
         .first();
 
       if (existingLog) {
         await ctx.db.patch(existingLog._id, {
-          ...(userId && !existingLog.userId ? { userId } : {}),
+          userId,
           journalEntryId: entryId!,
           met: logInput.met,
           note: logInput.note,
         });
       } else {
         await ctx.db.insert("goal_logs", {
-          userId: userId ?? undefined,
+          userId,
           journalEntryId: entryId!,
           goalId: logInput.goalId,
           date: args.date,
@@ -137,9 +151,15 @@ export const getRecentEntries = query({
     })
   ),
   handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) {
+      return [];
+    }
+
     const max = args.limit ?? 30;
     const entries = await ctx.db
       .query("journal_entries")
+      .withIndex("by_userId_and_date", (q) => q.eq("userId", userId))
       .order("desc")
       .take(max);
 
@@ -166,10 +186,15 @@ export const getLogsByGoal = query({
   },
   returns: v.array(goalLogValidator),
   handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) {
+      return [];
+    }
     const max = args.limit ?? 100;
     return await ctx.db
       .query("goal_logs")
       .withIndex("by_goalId", (q) => q.eq("goalId", args.goalId))
+      .filter((q) => q.eq(q.field("userId"), userId))
       .take(max);
   },
 });
@@ -178,6 +203,13 @@ export const getAllGoalLogs = query({
   args: {},
   returns: v.array(goalLogValidator),
   handler: async (ctx) => {
-    return await ctx.db.query("goal_logs").take(200);
+    const userId = await getAuthUserId(ctx);
+    if (!userId) {
+      return [];
+    }
+    return await ctx.db
+      .query("goal_logs")
+      .withIndex("by_userId_and_date", (q) => q.eq("userId", userId))
+      .take(200);
   },
 });
