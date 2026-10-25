@@ -2,24 +2,27 @@
 
 A maritime almanac, daily reflective captain's log, and navigational habit tracker tuned to NOAA San Francisco Bay tidal currents and astronomical cycles.
 
-## 🚀 Production Deployment
+## 🚀 Live Production URL
 
-### 1. Convex Backend (Live)
-The production backend is deployed to Convex:
+The entire full-stack application (frontend + reactive Convex backend) is hosted directly on Convex:
+
+👉 **[https://compassionate-minnow-316.convex.site](https://compassionate-minnow-316.convex.site)**
+
 - **Deployment**: `compassionate-minnow-316`
-- **Convex URL**: `https://compassionate-minnow-316.convex.cloud`
-- **Convex Site URL**: `https://compassionate-minnow-316.convex.site`
-- **Dashboard**: [Convex Dashboard](https://dashboard.convex.dev/t/emmaling27/almanac-journal/compassionate-minnow-316)
+- **Convex Cloud (Backend)**: `https://compassionate-minnow-316.convex.cloud`
+- **Convex Site (Frontend & Auth)**: `https://compassionate-minnow-316.convex.site`
+- **Convex Dashboard**: [Convex Dashboard](https://dashboard.convex.dev/t/emmaling27/almanac-journal/compassionate-minnow-316)
 
-### 2. Frontend Hosting (Vercel)
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Femmaling27%2Falmanac-journal&env=NEXT_PUBLIC_CONVEX_URL,NEXT_PUBLIC_CONVEX_SITE_URL&envDescription=Convex%20Production%20Deployment%20URLs&envLink=https%3A%2F%2Fdashboard.convex.dev%2Ft%2Femmaling27%2Falmanac-journal%2Fcompassionate-minnow-316)
+## 📦 Deploying Updates
 
-To deploy on [Vercel](https://vercel.com/new):
-1. Import repository `emmaling27/almanac-journal`.
-2. Configure the following Environment Variables in Vercel:
-   - `NEXT_PUBLIC_CONVEX_URL`: `https://compassionate-minnow-316.convex.cloud`
-   - `NEXT_PUBLIC_CONVEX_SITE_URL`: `https://compassionate-minnow-316.convex.site`
-3. Click **Deploy**.
+To deploy new changes to both backend and hosted frontend in one step:
+
+```bash
+# Deploy backend schema/functions and upload static frontend to Convex
+npx convex deploy
+npm run build
+npx @convex-dev/static-hosting upload -d out --prod
+```
 
 ## 🛠 Local Development
 

@@ -4,13 +4,15 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "NEXT_PUBLIC_CONVEX_URL=${VITE_CONVEX_URL:-$NEXT_PUBLIC_CONVEX_URL} next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "vitest run"
+    "test": "vitest run",
+    "deploy": "npx @convex-dev/static-hosting deploy -d out"
   },
   "dependencies": {
     "@convex-dev/auth": "^0.0.96",
+    "@convex-dev/static-hosting": "^0.2.1",
     "convex": "^1.47.0",
     "date-fns": "^4.4.0",
     "jose": "^6.2.13",
