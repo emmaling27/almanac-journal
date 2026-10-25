@@ -28,10 +28,6 @@ export function GoalTrackerMatrix({
   const goals = useMemo(() => rawGoals || [], [rawGoals]);
   const allLogs = useMemo(() => rawLogs || [], [rawLogs]);
 
-  if (!isAuthenticated) {
-    return null;
-  }
-
   // Generate last 14 days dates array ending today (or selected date)
   const days = useMemo(() => {
     const list = [];
@@ -93,6 +89,10 @@ export function GoalTrackerMatrix({
       };
     });
   }, [goals, days, logsMap]);
+
+  if (!isAuthenticated) {
+    return null;
+  }
 
   return (
     <div className="tidelog-card rounded-lg p-5 sm:p-6 shadow-sm border border-[#D8CFBF] space-y-5">
