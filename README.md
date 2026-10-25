@@ -1,36 +1,42 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# San Francisco Bay Tidelog & Reflective Journal
 
-## Getting Started
+A maritime almanac, daily reflective captain's log, and navigational habit tracker tuned to NOAA San Francisco Bay tidal currents and astronomical cycles.
 
-First, run the development server:
+## 🚀 Production Deployment
+
+### 1. Convex Backend (Live)
+The production backend is deployed to Convex:
+- **Deployment**: `compassionate-minnow-316`
+- **Convex URL**: `https://compassionate-minnow-316.convex.cloud`
+- **Convex Site URL**: `https://compassionate-minnow-316.convex.site`
+- **Dashboard**: [Convex Dashboard](https://dashboard.convex.dev/t/emmaling27/almanac-journal/compassionate-minnow-316)
+
+### 2. Frontend Hosting (Vercel)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Femmaling27%2Falmanac-journal&env=NEXT_PUBLIC_CONVEX_URL,NEXT_PUBLIC_CONVEX_SITE_URL&envDescription=Convex%20Production%20Deployment%20URLs&envLink=https%3A%2F%2Fdashboard.convex.dev%2Ft%2Femmaling27%2Falmanac-journal%2Fcompassionate-minnow-316)
+
+To deploy on [Vercel](https://vercel.com/new):
+1. Import repository `emmaling27/almanac-journal`.
+2. Configure the following Environment Variables in Vercel:
+   - `NEXT_PUBLIC_CONVEX_URL`: `https://compassionate-minnow-316.convex.cloud`
+   - `NEXT_PUBLIC_CONVEX_SITE_URL`: `https://compassionate-minnow-316.convex.site`
+3. Click **Deploy**.
+
+## 🛠 Local Development
 
 ```bash
+# Install dependencies
+npm install
+
+# Start local dev server & Convex backend
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Run test suite:
+```bash
+npm test
+```
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
-
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Production build check:
+```bash
+npm run build
+```
