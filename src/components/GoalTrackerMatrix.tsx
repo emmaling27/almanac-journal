@@ -107,6 +107,9 @@ export function GoalTrackerMatrix({
             <p className="text-xs text-[#5B6B7A] font-mono">
               14-Day Trajectory • Click any date column to review historical entry
             </p>
+            <span className="text-[10px] text-[#B38F4D] font-mono sm:hidden block mt-0.5">
+              Swipe across columns to see all 14 days &rarr;
+            </span>
           </div>
         </div>
 
@@ -121,7 +124,7 @@ export function GoalTrackerMatrix({
       </div>
 
       {/* Grid Table */}
-      <div className="overflow-x-auto pb-2">
+      <div className="overflow-x-auto pb-2 touch-pan-x -mx-2 px-2 sm:mx-0 sm:px-0">
         <table className="w-full text-left border-collapse">
           <thead>
             <tr>

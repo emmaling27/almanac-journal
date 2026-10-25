@@ -146,7 +146,7 @@ export function GoalManagerModal({ isOpen, onClose }: GoalManagerModalProps) {
                 value={newGoalName}
                 onChange={(e) => setNewGoalName(e.target.value)}
                 required
-                className="w-full px-3 py-2 text-sm bg-white border border-[#D8CFBF] rounded focus:outline-none focus:ring-1 focus:ring-[#B38F4D]"
+                className="w-full px-3 py-2 text-base sm:text-sm bg-white border border-[#D8CFBF] rounded focus:outline-none focus:ring-1 focus:ring-[#B38F4D]"
               />
             </div>
 
@@ -159,7 +159,7 @@ export function GoalManagerModal({ isOpen, onClose }: GoalManagerModalProps) {
                 placeholder="e.g. Taking time to exercise, compose music, or observe nature"
                 value={newGoalDesc}
                 onChange={(e) => setNewGoalDesc(e.target.value)}
-                className="w-full px-3 py-2 text-sm bg-white border border-[#D8CFBF] rounded focus:outline-none focus:ring-1 focus:ring-[#B38F4D]"
+                className="w-full px-3 py-2 text-base sm:text-sm bg-white border border-[#D8CFBF] rounded focus:outline-none focus:ring-1 focus:ring-[#B38F4D]"
               />
             </div>
 

@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Cinzel, EB_Garamond, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { ConvexClientProvider } from "./ConvexClientProvider";
@@ -20,10 +20,25 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 5,
+  themeColor: "#F4EFE6",
+};
+
 export const metadata: Metadata = {
   title: "San Francisco Bay Tidelog & Personal Journal",
   description:
     "Daily nautical almanac, tidal predictions, solar-lunar cycles, and reflective goal tracking for San Francisco Bay.",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "SF Tidelog",
+  },
+  formatDetection: {
+    telephone: false,
+  },
 };
 
 export default function RootLayout({

@@ -277,7 +277,7 @@ function JournalEditorForm({
                           : `What hindered or shifted your focus from ${goal.name.toLowerCase()}?`
                       }
                       rows={3}
-                      className="w-full p-2.5 text-xs font-serif bg-white rounded border border-[#DFD7C7] text-[#0A192F] focus:outline-none focus:ring-1 focus:ring-[#B38F4D] resize-none placeholder:text-[#9A8F7D]"
+                      className="w-full p-2.5 text-base sm:text-xs font-serif bg-white rounded border border-[#DFD7C7] text-[#0A192F] focus:outline-none focus:ring-1 focus:ring-[#B38F4D] resize-none placeholder:text-[#9A8F7D]"
                     />
                   </div>
                 </div>
