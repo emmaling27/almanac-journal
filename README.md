@@ -13,13 +13,21 @@ The entire full-stack application (frontend + reactive Convex backend) is hosted
 - **Convex Site (Frontend & Auth)**: `https://compassionate-minnow-316.convex.site`
 - **Convex Dashboard**: [Convex Dashboard](https://dashboard.convex.dev/t/emmaling27/almanac-journal/compassionate-minnow-316)
 
-## 📦 Deploying Updates
+## 📦 Continuous Integration & Deployment (CI/CD)
 
-To deploy new changes to both backend and hosted frontend in one step:
+Continuous integration and automated production deployment are configured via GitHub Actions (`.github/workflows/ci.yml`):
+
+- **Pull Requests**: Automatically runs Vitest tests and validates Next.js build.
+- **Push to `main`**: Runs the full test suite (`npm test`), validates the build, deploys Convex functions & schema to production (`compassionate-minnow-316`), and uploads the static web assets to `@convex-dev/static-hosting`.
+- **Secret**: Authenticated via `CONVEX_DEPLOY_KEY` stored in GitHub repository secrets.
+
+### Manual Deployment
+
+To manually deploy changes from local terminal:
 
 ```bash
 # Deploy backend schema/functions and upload static frontend to Convex
-npx convex deploy
+npx convex deploy -y
 npm run build
 npx @convex-dev/static-hosting upload -d out --prod
 ```
