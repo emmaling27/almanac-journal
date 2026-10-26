@@ -11,6 +11,7 @@ import {
   ReferenceLine,
 } from "recharts";
 import { Waves, ArrowUpRight, ArrowDownRight } from "lucide-react";
+import { format } from "date-fns";
 import {
   TidePoint,
   TideEvent,
@@ -18,6 +19,11 @@ import {
   TIDE_STATIONS,
 } from "@/lib/environmental";
 import { MllwTooltip } from "./MllwTooltip";
+import {
+  formatCurrentTime,
+  isDateToday,
+  snapToTideInterval,
+} from "@/lib/tideChartUtils";
 
 interface TideCurveChartProps {
   tideCurve: TidePoint[];
@@ -26,6 +32,7 @@ interface TideCurveChartProps {
   todayStr: string;
   selectedStation?: TideStationId;
   onStationChange?: (station: TideStationId) => void;
+  currentTime?: Date;
 }
 
 export function TideCurveChart({
@@ -35,9 +42,43 @@ export function TideCurveChart({
   todayStr,
   selectedStation = "aquatic-park",
   onStationChange,
+  currentTime,
 }: TideCurveChartProps) {
   const stationConfig = TIDE_STATIONS[selectedStation] ?? TIDE_STATIONS["aquatic-park"];
-  const isToday = todayStr ? todayStr === selectedDate : false;
+
+  const [liveClock, setLiveClock] = useState(() => {
+    const initial = currentTime ?? new Date();
+    return {
+      time: formatCurrentTime(initial),
+      date: format(initial, "yyyy-MM-dd"),
+    };
+  });
+
+  useEffect(() => {
+    if (currentTime) {
+      setLiveClock({
+        time: formatCurrentTime(currentTime),
+        date: format(currentTime, "yyyy-MM-dd"),
+      });
+      return;
+    }
+
+    const checkClock = () => {
+      const now = new Date();
+      const time = formatCurrentTime(now);
+      const date = format(now, "yyyy-MM-dd");
+      setLiveClock((prev) => {
+        if (prev.time === time && prev.date === date) {
+          return prev;
+        }
+        return { time, date };
+      });
+    };
+
+    checkClock();
+    const timer = setInterval(checkClock, 1000);
+    return () => clearInterval(timer);
+  }, [currentTime]);
 
   const [isMobile, setIsMobile] = useState(false);
 
@@ -50,13 +91,14 @@ export function TideCurveChart({
     return () => window.removeEventListener("resize", checkMobile);
   }, []);
 
+  const isToday = useMemo(() => {
+    return isDateToday(selectedDate, todayStr, currentTime ?? new Date());
+  }, [selectedDate, todayStr, currentTime, liveClock.date]);
+
   const currentHourFormatted = useMemo(() => {
     if (!isToday) return null;
-    const now = new Date();
-    const h = String(now.getHours()).padStart(2, "0");
-    const m = now.getMinutes() < 30 ? "00" : "30";
-    return `${h}:${m}`;
-  }, [isToday]);
+    return snapToTideInterval(liveClock.time);
+  }, [isToday, liveClock.time]);
 
   const chartData = useMemo(() => {
     return tideCurve.map((point) => ({
@@ -87,6 +129,15 @@ export function TideCurveChart({
             <span className="text-[10px] font-mono uppercase px-2 py-0.5 rounded bg-[#EAE2D2] text-[#0A192F] font-bold border border-[#D8CFBF]">
               {stationConfig.shortName}
             </span>
+            {isToday && currentHourFormatted && (
+              <span
+                data-testid="live-indicator"
+                className="inline-flex items-center gap-1.5 text-[10px] font-mono px-2 py-0.5 rounded bg-[#FBF0EE] text-[#D9534F] font-bold border border-[#F3C5C3]"
+              >
+                <span className="w-1.5 h-1.5 rounded-full bg-[#D9534F] animate-pulse" />
+                LIVE • {liveClock.time}
+              </span>
+            )}
           </div>
         </div>
 
@@ -188,10 +239,16 @@ export function TideCurveChart({
               content={({ active, payload }) => {
                 if (active && payload && payload.length) {
                   const data = payload[0].payload;
+                  const isCurrentTime = isToday && data.time === currentHourFormatted;
                   return (
                     <div className="bg-[#0A192F] text-[#FAF7F0] p-2.5 rounded shadow-lg border border-[#B38F4D] text-xs font-mono space-y-1">
-                      <div className="text-[#DFC898] font-bold">
-                        Time: {data.time} LST
+                      <div className="text-[#DFC898] font-bold flex items-center justify-between gap-3">
+                        <span>Time: {data.time} LST</span>
+                        {isCurrentTime && (
+                          <span className="text-[10px] bg-[#D9534F] text-white px-1.5 py-0.5 rounded font-bold uppercase tracking-wider">
+                            NOW
+                          </span>
+                        )}
                       </div>
                       <div className="text-sm font-semibold">
                         Height: {data.height.toFixed(2)} ft MLLW

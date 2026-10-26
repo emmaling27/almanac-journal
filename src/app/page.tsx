@@ -19,8 +19,25 @@ import { api } from "../../convex/_generated/api";
 import { AuthModal } from "@/components/AuthModal";
 import { Anchor, Compass, Waves, Loader2 } from "lucide-react";
 
-function subscribe() {
-  return () => {};
+const todayListeners = new Set<() => void>();
+let lastTrackedDay = "";
+
+if (typeof window !== "undefined") {
+  lastTrackedDay = format(new Date(), "yyyy-MM-dd");
+  setInterval(() => {
+    const current = format(new Date(), "yyyy-MM-dd");
+    if (current !== lastTrackedDay) {
+      lastTrackedDay = current;
+      todayListeners.forEach((notify) => notify());
+    }
+  }, 1000);
+}
+
+function subscribe(callback: () => void) {
+  todayListeners.add(callback);
+  return () => {
+    todayListeners.delete(callback);
+  };
 }
 
 function getClientToday() {
