@@ -129,15 +129,6 @@ export function TideCurveChart({
             <span className="text-[10px] font-mono uppercase px-2 py-0.5 rounded bg-[#EAE2D2] text-[#0A192F] font-bold border border-[#D8CFBF]">
               {stationConfig.shortName}
             </span>
-            {isToday && currentHourFormatted && (
-              <span
-                data-testid="live-indicator"
-                className="inline-flex items-center gap-1.5 text-[10px] font-mono px-2 py-0.5 rounded bg-[#FBF0EE] text-[#D9534F] font-bold border border-[#F3C5C3]"
-              >
-                <span className="w-1.5 h-1.5 rounded-full bg-[#D9534F] animate-pulse" />
-                LIVE • {liveClock.time}
-              </span>
-            )}
           </div>
         </div>
 
