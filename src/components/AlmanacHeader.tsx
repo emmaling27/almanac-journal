@@ -4,8 +4,6 @@ import React from "react";
 import { format, parseISO, addDays, subDays } from "date-fns";
 import {
   Compass,
-  Sun,
-  Moon,
   Wind,
   Waves,
   Calendar as CalendarIcon,
@@ -225,60 +223,7 @@ export function AlmanacHeader({
         </div>
 
         {/* Environmental Highlights Bar */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
-          {/* Sun Card */}
-          <div className="tidelog-card p-4 rounded-lg flex flex-col justify-between">
-            <div className="flex items-center justify-between text-[#B38F4D]">
-              <span className="text-xs uppercase font-mono tracking-wider font-semibold">
-                Solar Cycle
-              </span>
-              <Sun className="w-4 h-4" />
-            </div>
-            <div className="mt-2">
-              <div className="flex justify-between items-baseline">
-                <span className="text-xs text-[#5B6B7A]">Sunrise:</span>
-                <span className="font-mono text-sm font-bold text-[#0A192F]">
-                  {envData?.solarLunar.sunrise ?? "07:15"}
-                </span>
-              </div>
-              <div className="flex justify-between items-baseline mt-1">
-                <span className="text-xs text-[#5B6B7A]">Sunset:</span>
-                <span className="font-mono text-sm font-bold text-[#0A192F]">
-                  {envData?.solarLunar.sunset ?? "18:25"}
-                </span>
-              </div>
-            </div>
-            <div className="mt-2 text-[11px] text-[#7A6B53] font-mono border-t border-[#EAE2D2] pt-1.5 flex justify-between">
-              <span>Daylight:</span>
-              <span className="font-medium text-[#0A192F]">
-                {envData?.solarLunar.daylightHours ?? "11h 10m"}
-              </span>
-            </div>
-          </div>
-
-          {/* Moon Card */}
-          <div className="tidelog-card p-4 rounded-lg flex flex-col justify-between">
-            <div className="flex items-center justify-between text-[#B38F4D]">
-              <span className="text-xs uppercase font-mono tracking-wider font-semibold">
-                Lunar Phase
-              </span>
-              <Moon className="w-4 h-4" />
-            </div>
-            <div className="mt-2 flex items-center gap-3">
-              <span className="text-2xl" role="img" aria-label="Moon phase">
-                {envData?.solarLunar.moonIcon ?? "🌖"}
-              </span>
-              <div>
-                <p className="text-sm font-serif font-bold text-[#0A192F]">
-                  {envData?.solarLunar.moonPhaseName ?? "Waxing Gibbous"}
-                </p>
-                <p className="text-xs font-mono text-[#5B6B7A]">
-                  {envData?.solarLunar.moonIllumination ?? 80}% Illuminated
-                </p>
-              </div>
-            </div>
-          </div>
-
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
           {/* Wind Card */}
           <div className="tidelog-card p-4 rounded-lg flex flex-col justify-between">
             <div className="flex items-center justify-between text-[#B38F4D]">

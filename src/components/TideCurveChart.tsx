@@ -9,6 +9,7 @@ import {
   Tooltip,
   ResponsiveContainer,
   ReferenceLine,
+  ReferenceArea,
 } from "recharts";
 import { Waves, ArrowUpRight, ArrowDownRight } from "lucide-react";
 import { format } from "date-fns";
@@ -17,6 +18,7 @@ import {
   TideEvent,
   TideStationId,
   TIDE_STATIONS,
+  SolarLunarData,
 } from "@/lib/environmental";
 import { MllwTooltip } from "./MllwTooltip";
 import {
@@ -28,6 +30,7 @@ import {
 interface TideCurveChartProps {
   tideCurve: TidePoint[];
   tideEvents: TideEvent[];
+  solarLunar?: SolarLunarData;
   selectedDate: string;
   todayStr: string;
   selectedStation?: TideStationId;
@@ -38,6 +41,7 @@ interface TideCurveChartProps {
 export function TideCurveChart({
   tideCurve,
   tideEvents,
+  solarLunar,
   selectedDate,
   todayStr,
   selectedStation = "aquatic-park",
@@ -101,11 +105,93 @@ export function TideCurveChart({
   }, [isToday, liveClock.time]);
 
   const chartData = useMemo(() => {
-    return tideCurve.map((point) => ({
-      time: point.time,
-      height: point.height,
-    }));
-  }, [tideCurve]);
+    if (!tideCurve || tideCurve.length === 0) return [];
+
+    const timeToMin = (t: string) => {
+      const [h, m] = t.split(":").map(Number);
+      return (h || 0) * 60 + (m || 0);
+    };
+
+    const interpolateHeight = (timeStr: string) => {
+      const targetMin = timeToMin(timeStr);
+      const exact = tideCurve.find((p) => p.time === timeStr);
+      if (exact) return exact.height;
+
+      let prev = tideCurve[0];
+      let next = tideCurve[tideCurve.length - 1];
+      for (let i = 0; i < tideCurve.length; i++) {
+        const m = timeToMin(tideCurve[i].time);
+        if (m <= targetMin) prev = tideCurve[i];
+        if (m >= targetMin) {
+          next = tideCurve[i];
+          break;
+        }
+      }
+
+      const prevMin = timeToMin(prev.time);
+      const nextMin = timeToMin(next.time);
+      if (nextMin === prevMin) return prev.height;
+
+      const ratio = (targetMin - prevMin) / (nextMin - prevMin);
+      const val = prev.height + ratio * (next.height - prev.height);
+      return Math.round(val * 100) / 100;
+    };
+
+    const pointMap = new Map<
+      string,
+      {
+        time: string;
+        height: number;
+        celestialEvents: string[];
+      }
+    >();
+
+    // Add all base curve points
+    tideCurve.forEach((p) => {
+      pointMap.set(p.time, {
+        time: p.time,
+        height: p.height,
+        celestialEvents: [],
+      });
+    });
+
+    // Add celestial events (sunrise, sunset, moonrise, moonset)
+    const addCelestial = (timeStr: string | null | undefined, label: string) => {
+      if (!timeStr || !/^\d{2}:\d{2}$/.test(timeStr)) return;
+      const existing = pointMap.get(timeStr);
+      if (existing) {
+        if (!existing.celestialEvents.includes(label)) {
+          existing.celestialEvents.push(label);
+        }
+      } else {
+        pointMap.set(timeStr, {
+          time: timeStr,
+          height: interpolateHeight(timeStr),
+          celestialEvents: [label],
+        });
+      }
+    };
+
+    if (solarLunar?.sunrise) addCelestial(solarLunar.sunrise, `Sunrise (${solarLunar.sunrise})`);
+    if (solarLunar?.sunset) addCelestial(solarLunar.sunset, `Sunset (${solarLunar.sunset})`);
+    if (solarLunar?.moonrise) addCelestial(solarLunar.moonrise, `Moonrise (${solarLunar.moonrise})`);
+    if (solarLunar?.moonset) addCelestial(solarLunar.moonset, `Moonset (${solarLunar.moonset})`);
+
+    // If today, also insert the current time point
+    if (currentHourFormatted) {
+      if (!pointMap.has(currentHourFormatted)) {
+        pointMap.set(currentHourFormatted, {
+          time: currentHourFormatted,
+          height: interpolateHeight(currentHourFormatted),
+          celestialEvents: [],
+        });
+      }
+    }
+
+    return Array.from(pointMap.values()).sort(
+      (a, b) => timeToMin(a.time) - timeToMin(b.time)
+    );
+  }, [tideCurve, solarLunar, currentHourFormatted]);
 
   const xTicks = useMemo(() => {
     const availableTimes = new Set(chartData.map((d) => d.time));
@@ -158,15 +244,15 @@ export function TideCurveChart({
       </div>
 
       {/* Chart Canvas */}
-      <div className="h-56 sm:h-72 w-full mt-4">
+      <div className="h-60 sm:h-76 w-full mt-4">
         <ResponsiveContainer width="100%" height="100%">
           <AreaChart
             data={chartData}
             margin={{
-              top: 15,
+              top: 22,
               right: 10,
               left: isMobile ? -20 : -15,
-              bottom: 0,
+              bottom: 5,
             }}
           >
             <defs>
@@ -195,6 +281,17 @@ export function TideCurveChart({
               unit="′"
             />
 
+            {/* Daylight span warm tint */}
+            {solarLunar?.sunrise && solarLunar?.sunset && (
+              <ReferenceArea
+                x1={solarLunar.sunrise}
+                x2={solarLunar.sunset}
+                fill="#F59E0B"
+                fillOpacity={0.07}
+                ifOverflow="visible"
+              />
+            )}
+
             {/* Mean Sea Level Reference Line */}
             <ReferenceLine
               y={3.0}
@@ -209,6 +306,92 @@ export function TideCurveChart({
               }}
             />
 
+            {/* Sunrise Reference Line */}
+            {solarLunar?.sunrise && (
+              <ReferenceLine
+                x={solarLunar.sunrise}
+                stroke="#D97706"
+                strokeWidth={1.5}
+                strokeDasharray="4 3"
+                label={{
+                  value: isMobile ? `RISE ${solarLunar.sunrise}` : `SUNRISE ${solarLunar.sunrise}`,
+                  fill: "#92400E",
+                  stroke: "#FAF7F0",
+                  strokeWidth: 3,
+                  paintOrder: "stroke",
+                  fontSize: isMobile ? 9 : 10,
+                  position: "top",
+                  fontFamily: "monospace",
+                  fontWeight: "bold",
+                }}
+              />
+            )}
+
+            {/* Sunset Reference Line */}
+            {solarLunar?.sunset && (
+              <ReferenceLine
+                x={solarLunar.sunset}
+                stroke="#EA580C"
+                strokeWidth={1.5}
+                strokeDasharray="4 3"
+                label={{
+                  value: isMobile ? `SET ${solarLunar.sunset}` : `SUNSET ${solarLunar.sunset}`,
+                  fill: "#9A3412",
+                  stroke: "#FAF7F0",
+                  strokeWidth: 3,
+                  paintOrder: "stroke",
+                  fontSize: isMobile ? 9 : 10,
+                  position: "top",
+                  fontFamily: "monospace",
+                  fontWeight: "bold",
+                }}
+              />
+            )}
+
+            {/* Moonrise Reference Line */}
+            {solarLunar?.moonrise && (
+              <ReferenceLine
+                x={solarLunar.moonrise}
+                stroke="#4F46E5"
+                strokeWidth={1.5}
+                strokeDasharray="3 3"
+                label={{
+                  value: isMobile ? `MOONRISE ${solarLunar.moonrise}` : `MOONRISE ${solarLunar.moonrise}`,
+                  fill: "#3730A3",
+                  stroke: "#FAF7F0",
+                  strokeWidth: 3,
+                  paintOrder: "stroke",
+                  fontSize: isMobile ? 9 : 10,
+                  position: "insideBottom",
+                  fontFamily: "monospace",
+                  fontWeight: "bold",
+                  offset: 14,
+                }}
+              />
+            )}
+
+            {/* Moonset Reference Line */}
+            {solarLunar?.moonset && (
+              <ReferenceLine
+                x={solarLunar.moonset}
+                stroke="#6D28D9"
+                strokeWidth={1.5}
+                strokeDasharray="3 3"
+                label={{
+                  value: isMobile ? `MOONSET ${solarLunar.moonset}` : `MOONSET ${solarLunar.moonset}`,
+                  fill: "#5B21B6",
+                  stroke: "#FAF7F0",
+                  strokeWidth: 3,
+                  paintOrder: "stroke",
+                  fontSize: isMobile ? 9 : 10,
+                  position: "insideBottom",
+                  fontFamily: "monospace",
+                  fontWeight: "bold",
+                  offset: 14,
+                }}
+              />
+            )}
+
             {/* Current Time Reference Line */}
             {currentHourFormatted && (
               <ReferenceLine
@@ -217,7 +400,10 @@ export function TideCurveChart({
                 strokeWidth={2}
                 label={{
                   value: "NOW",
-                  fill: "#D9534F",
+                  fill: "#B91C1C",
+                  stroke: "#FAF7F0",
+                  strokeWidth: 3,
+                  paintOrder: "stroke",
                   fontSize: 10,
                   position: "top",
                   fontFamily: "monospace",
@@ -244,6 +430,19 @@ export function TideCurveChart({
                       <div className="text-sm font-semibold">
                         Height: {data.height.toFixed(2)} ft MLLW
                       </div>
+                      {data.celestialEvents && data.celestialEvents.length > 0 && (
+                        <div className="pt-1.5 mt-1 border-t border-[#B38F4D]/40 space-y-0.5">
+                          {data.celestialEvents.map((evt: string, idx: number) => (
+                            <div
+                              key={idx}
+                              className="text-[11px] text-[#FDE68A] flex items-center gap-1.5 font-semibold"
+                            >
+                              <span>✦</span>
+                              <span>{evt}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   );
                 }
@@ -263,7 +462,26 @@ export function TideCurveChart({
         </ResponsiveContainer>
       </div>
 
-      <div className="flex items-center justify-center text-[11px] sm:text-xs text-[#5B6B7A] font-mono mt-3 pt-3 border-t border-[#EAE2D2]">
+      <div className="flex flex-wrap items-center justify-between text-[11px] sm:text-xs text-[#5B6B7A] font-mono mt-3 pt-3 border-t border-[#EAE2D2] gap-3">
+        <div className="flex flex-wrap items-center gap-3 sm:gap-4">
+          <div className="flex items-center gap-1.5" title="Mean Sea Level (3.0 ft)">
+            <span className="inline-block w-3.5 h-0.5 border-t-2 border-dashed border-[#B38F4D]" />
+            <span>MSL 3.0′</span>
+          </div>
+          <div className="flex items-center gap-1.5" title="Daylight Hours (between Sunrise and Sunset)">
+            <span className="inline-block w-3 h-2 rounded-xs bg-[#F59E0B]/25 border border-[#F59E0B]/60" />
+            <span>Daylight</span>
+          </div>
+          <div className="flex items-center gap-1.5" title="Sunrise & Sunset Markings">
+            <span className="inline-block w-3.5 h-0.5 border-t-2 border-dashed border-[#D97706]" />
+            <span>Sun (Rise/Set)</span>
+          </div>
+          <div className="flex items-center gap-1.5" title="Moonrise & Moonset Markings">
+            <span className="inline-block w-3.5 h-0.5 border-t-2 border-dashed border-[#4F46E5]" />
+            <span>Moon (Rise/Set)</span>
+          </div>
+        </div>
+
         <MllwTooltip variant="light" align="center">
           <span>MLLW (Mean Lower Low Water) 0.0′ Datum</span>
         </MllwTooltip>

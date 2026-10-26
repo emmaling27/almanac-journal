@@ -31,10 +31,14 @@ describe("Environmental Calculations & Stations", () => {
       expect(moon).toHaveProperty("name");
       expect(moon).toHaveProperty("illumination");
       expect(moon).toHaveProperty("icon");
+      expect(moon).toHaveProperty("approxMoonrise");
+      expect(moon).toHaveProperty("approxMoonset");
       expect(typeof moon.name).toBe("string");
       expect(moon.illumination).toBeGreaterThanOrEqual(0);
       expect(moon.illumination).toBeLessThanOrEqual(100);
       expect(typeof moon.icon).toBe("string");
+      expect(moon.approxMoonrise).toMatch(/^\d{2}:\d{2}$/);
+      expect(moon.approxMoonset).toMatch(/^\d{2}:\d{2}$/);
     });
   });
 
@@ -74,6 +78,14 @@ describe("Environmental Calculations & Stations", () => {
       expect(typeof data.currentTideHeight).toBe("number");
       expect(["Flooding", "Ebbing", "Slack"]).toContain(data.tideTendency);
       expect(data.solarLunar.daylightHours).toBeDefined();
+      expect(data.solarLunar.sunrise).toMatch(/^\d{2}:\d{2}$/);
+      expect(data.solarLunar.sunset).toMatch(/^\d{2}:\d{2}$/);
+      if (data.solarLunar.moonrise !== null) {
+        expect(data.solarLunar.moonrise).toMatch(/^\d{2}:\d{2}$/);
+      }
+      if (data.solarLunar.moonset !== null) {
+        expect(data.solarLunar.moonset).toMatch(/^\d{2}:\d{2}$/);
+      }
 
       // Verify that major tick intervals exist in the curve for uncrowded mobile & desktop rendering
       const curveTimes = new Set(data.tideCurve.map((p) => p.time));
@@ -96,6 +108,14 @@ describe("Environmental Calculations & Stations", () => {
       expect(data.stationShortName).toBe("Crane Cove");
       expect(data.tideCurve.length).toBeGreaterThanOrEqual(24);
       expect(data.tideEvents.length).toBeGreaterThan(0);
+      expect(data.solarLunar.sunrise).toMatch(/^\d{2}:\d{2}$/);
+      expect(data.solarLunar.sunset).toMatch(/^\d{2}:\d{2}$/);
+      if (data.solarLunar.moonrise !== null) {
+        expect(data.solarLunar.moonrise).toMatch(/^\d{2}:\d{2}$/);
+      }
+      if (data.solarLunar.moonset !== null) {
+        expect(data.solarLunar.moonset).toMatch(/^\d{2}:\d{2}$/);
+      }
     });
   });
 });

@@ -171,6 +171,7 @@ function TidelogApp() {
           <TideCurveChart
             tideCurve={envData.tideCurve}
             tideEvents={envData.tideEvents}
+            solarLunar={envData.solarLunar}
             selectedDate={selectedDate}
             todayStr={clientToday}
             selectedStation={selectedStation}

@@ -58,6 +58,8 @@ export interface SolarLunarData {
   sunrise: string; // "07:24"
   sunset: string; // "18:23"
   daylightHours: string; // "11h 00m"
+  moonrise: string | null; // "17:49" or null if no rise
+  moonset: string | null; // "06:58" or null if no set
   moonPhaseName: string; // "Waxing Gibbous"
   moonIllumination: number; // 0 - 100
   moonIcon: string;
@@ -99,6 +101,8 @@ export function calculateMoonPhase(dateObj: Date): {
   name: string;
   illumination: number;
   icon: string;
+  approxMoonrise: string;
+  approxMoonset: string;
 } {
   // Known new moon: Jan 11, 2024, 11:57 UTC
   const refDate = new Date(Date.UTC(2024, 0, 11, 11, 57, 0)).getTime();
@@ -110,6 +114,11 @@ export function calculateMoonPhase(dateObj: Date): {
   const illumination = Math.round(
     ((1 - Math.cos((ageDays / 29.53058867) * 2 * Math.PI)) / 2) * 100
   );
+
+  const riseMin = Math.round((6 * 60 + ageDays * (24 * 60 / 29.53058867)) % (24 * 60));
+  const setMin = Math.round((18 * 60 + ageDays * (24 * 60 / 29.53058867)) % (24 * 60));
+  const approxMoonrise = `${String(Math.floor(riseMin / 60)).padStart(2, "0")}:${String(riseMin % 60).padStart(2, "0")}`;
+  const approxMoonset = `${String(Math.floor(setMin / 60)).padStart(2, "0")}:${String(setMin % 60).padStart(2, "0")}`;
 
   let name = "New Moon";
   let icon = "🌑";
@@ -143,7 +152,7 @@ export function calculateMoonPhase(dateObj: Date): {
     icon = "🌑";
   }
 
-  return { name, illumination, icon };
+  return { name, illumination, icon, approxMoonrise, approxMoonset };
 }
 
 // Fallback synthetic harmonic tide curve calibrated for SF Bay locations
@@ -314,7 +323,7 @@ export async function fetchEnvironmentalData(
     }
   }
 
-  // 2. Fetch Open-Meteo Sun & Wind for the specific location
+  // 2. Fetch Open-Meteo Sun, Moon & Wind for the specific location
   let sunrise = "07:15";
   let sunset = "18:25";
   let daylightHours = "11h 10m";
@@ -322,9 +331,13 @@ export async function fetchEnvironmentalData(
   let windDirectionDeg = 280;
   let temperatureF = 62;
 
+  const moon = calculateMoonPhase(dateObj);
+  let moonrise: string | null = moon.approxMoonrise;
+  let moonset: string | null = moon.approxMoonset;
+
   try {
     const weatherRes = await fetch(
-      `https://api.open-meteo.com/v1/forecast?latitude=${station.lat}&longitude=${station.lng}&daily=sunrise,sunset,daylight_duration&hourly=wind_speed_10m,wind_direction_10m,temperature_2m&start_date=${dateStr}&end_date=${dateStr}&timezone=America%2FLos_Angeles`
+      `https://api.open-meteo.com/v1/forecast?latitude=${station.lat}&longitude=${station.lng}&daily=sunrise,sunset,daylight_duration,moonrise,moonset&hourly=wind_speed_10m,wind_direction_10m,temperature_2m&start_date=${dateStr}&end_date=${dateStr}&timezone=America%2FLos_Angeles`
     );
 
     if (weatherRes.ok) {
@@ -340,6 +353,12 @@ export async function fetchEnvironmentalData(
         const hrs = Math.floor(totalSec / 3600);
         const mins = Math.round((totalSec % 3600) / 60);
         daylightHours = `${hrs}h ${mins}m`;
+      }
+      if (weather?.daily?.moonrise?.[0] !== undefined) {
+        moonrise = weather.daily.moonrise[0] ? weather.daily.moonrise[0].split("T")[1] : null;
+      }
+      if (weather?.daily?.moonset?.[0] !== undefined) {
+        moonset = weather.daily.moonset[0] ? weather.daily.moonset[0].split("T")[1] : null;
       }
 
       const hourlyIndex = Math.min(
@@ -362,8 +381,6 @@ export async function fetchEnvironmentalData(
     console.warn("Using weather fallback:", err);
   }
 
-  const moon = calculateMoonPhase(dateObj);
-
   return {
     date: dateStr,
     stationId: station.id,
@@ -378,6 +395,8 @@ export async function fetchEnvironmentalData(
       sunrise,
       sunset,
       daylightHours,
+      moonrise,
+      moonset,
       moonPhaseName: moon.name,
       moonIllumination: moon.illumination,
       moonIcon: moon.icon,
