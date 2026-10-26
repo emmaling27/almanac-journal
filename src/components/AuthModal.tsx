@@ -144,7 +144,7 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   placeholder="Captain Emma"
-                  className="w-full pl-9 pr-3 py-2 text-base sm:text-xs bg-white border border-[#D8CFBF] rounded text-[#0A192F] placeholder-[#9A8F7D] focus:outline-none focus:ring-1 focus:ring-[#B38F4D]"
+                  className="w-full pl-9 pr-3 py-2 text-base sm:text-xs bg-white border border-[#D8CFBF] hover:border-[#9A8F7D] rounded text-[#0A192F] placeholder-[#9A8F7D] focus:outline-none focus:border-[#0A192F] focus:ring-2 focus:ring-[#0A192F]/20 shadow-2xs focus:shadow-sm transition-all"
                   autoComplete="name"
                 />
               </div>
@@ -163,7 +163,7 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="sailor@sfbay.org"
-                className="w-full pl-9 pr-3 py-2 text-base sm:text-xs bg-white border border-[#D8CFBF] rounded text-[#0A192F] placeholder-[#9A8F7D] focus:outline-none focus:ring-1 focus:ring-[#B38F4D]"
+                className="w-full pl-9 pr-3 py-2 text-base sm:text-xs bg-white border border-[#D8CFBF] hover:border-[#9A8F7D] rounded text-[#0A192F] placeholder-[#9A8F7D] focus:outline-none focus:border-[#0A192F] focus:ring-2 focus:ring-[#0A192F]/20 shadow-2xs focus:shadow-sm transition-all"
                 autoComplete="username"
               />
             </div>
@@ -182,7 +182,7 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••••••"
-                className="w-full pl-9 pr-3 py-2 text-base sm:text-xs bg-white border border-[#D8CFBF] rounded text-[#0A192F] placeholder-[#9A8F7D] focus:outline-none focus:ring-1 focus:ring-[#B38F4D]"
+                className="w-full pl-9 pr-3 py-2 text-base sm:text-xs bg-white border border-[#D8CFBF] hover:border-[#9A8F7D] rounded text-[#0A192F] placeholder-[#9A8F7D] focus:outline-none focus:border-[#0A192F] focus:ring-2 focus:ring-[#0A192F]/20 shadow-2xs focus:shadow-sm transition-all"
                 autoComplete={mode === "signIn" ? "current-password" : "new-password"}
               />
             </div>

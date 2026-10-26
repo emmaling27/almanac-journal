@@ -177,7 +177,7 @@ export function AlmanacHeader({
                 type="date"
                 value={selectedDate}
                 onChange={(e) => e.target.value && onDateChange(e.target.value)}
-                className="px-2 py-1.5 text-base sm:text-xs font-mono bg-white border border-[#D8CFBF] rounded text-[#0A192F] focus:outline-none focus:ring-1 focus:ring-[#B38F4D]"
+                className="px-2 py-1.5 text-base sm:text-xs font-mono bg-white border border-[#D8CFBF] hover:border-[#9A8F7D] rounded text-[#0A192F] focus:outline-none focus:border-[#0A192F] focus:ring-2 focus:ring-[#0A192F]/20 shadow-2xs focus:shadow-sm transition-all"
               />
             </div>
           </div>
@@ -221,7 +221,7 @@ export function AlmanacHeader({
               type="date"
               value={selectedDate}
               onChange={(e) => e.target.value && onDateChange(e.target.value)}
-              className="ml-2 px-2 py-1 text-base sm:text-xs font-mono bg-white border border-[#D8CFBF] rounded text-[#0A192F] focus:outline-none focus:ring-1 focus:ring-[#B38F4D]"
+              className="ml-2 px-2 py-1 text-base sm:text-xs font-mono bg-white border border-[#D8CFBF] hover:border-[#9A8F7D] rounded text-[#0A192F] focus:outline-none focus:border-[#0A192F] focus:ring-2 focus:ring-[#0A192F]/20 shadow-2xs focus:shadow-sm transition-all"
             />
           </div>
 

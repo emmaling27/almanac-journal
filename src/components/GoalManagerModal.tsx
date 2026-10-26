@@ -171,30 +171,38 @@ export function GoalManagerModal({ isOpen, onClose }: GoalManagerModalProps) {
           )}
 
           <div className="space-y-3">
-            <div>
-              <label className="block text-xs font-mono text-[#5B6B7A] mb-1">
+            <div className="group">
+              <label
+                htmlFor="goal-name-input"
+                className="block text-xs font-mono text-[#5B6B7A] group-focus-within:text-[#0A192F] group-focus-within:font-semibold mb-1 transition-colors"
+              >
                 Goal Name
               </label>
               <input
+                id="goal-name-input"
                 type="text"
                 placeholder="e.g. Physical Vitality, Deep Reading, Mindfulness"
                 value={newGoalName}
                 onChange={(e) => setNewGoalName(e.target.value)}
                 required
-                className="w-full px-3 py-2 text-base sm:text-sm bg-white border border-[#D8CFBF] rounded focus:outline-none focus:ring-1 focus:ring-[#B38F4D]"
+                className="w-full px-3 py-2 text-base sm:text-sm bg-white border border-[#D8CFBF] hover:border-[#9A8F7D] rounded text-[#0A192F] placeholder:text-[#9A8F7D] focus:outline-none focus:border-[#0A192F] focus:ring-2 focus:ring-[#0A192F]/20 shadow-2xs focus:shadow-sm transition-all"
               />
             </div>
 
-            <div>
-              <label className="block text-xs font-mono text-[#5B6B7A] mb-1">
+            <div className="group">
+              <label
+                htmlFor="goal-desc-input"
+                className="block text-xs font-mono text-[#5B6B7A] group-focus-within:text-[#0A192F] group-focus-within:font-semibold mb-1 transition-colors"
+              >
                 Description / Practice Focus (Optional)
               </label>
               <input
+                id="goal-desc-input"
                 type="text"
                 placeholder="e.g. Taking time to exercise, compose music, or observe nature"
                 value={newGoalDesc}
                 onChange={(e) => setNewGoalDesc(e.target.value)}
-                className="w-full px-3 py-2 text-base sm:text-sm bg-white border border-[#D8CFBF] rounded focus:outline-none focus:ring-1 focus:ring-[#B38F4D]"
+                className="w-full px-3 py-2 text-base sm:text-sm bg-white border border-[#D8CFBF] hover:border-[#9A8F7D] rounded text-[#0A192F] placeholder:text-[#9A8F7D] focus:outline-none focus:border-[#0A192F] focus:ring-2 focus:ring-[#0A192F]/20 shadow-2xs focus:shadow-sm transition-all"
               />
             </div>
 

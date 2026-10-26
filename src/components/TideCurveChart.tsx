@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
   AreaChart,
   Area,
@@ -38,6 +38,17 @@ export function TideCurveChart({
   const stationConfig = TIDE_STATIONS[selectedStation] ?? TIDE_STATIONS["aquatic-park"];
   const isToday = todayStr ? todayStr === selectedDate : false;
 
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 640);
+    };
+    checkMobile();
+    window.addEventListener("resize", checkMobile);
+    return () => window.removeEventListener("resize", checkMobile);
+  }, []);
+
   const currentHourFormatted = useMemo(() => {
     if (!isToday) return null;
     const now = new Date();
@@ -53,8 +64,18 @@ export function TideCurveChart({
     }));
   }, [tideCurve]);
 
+  const xTicks = useMemo(() => {
+    const availableTimes = new Set(chartData.map((d) => d.time));
+    const targetTicks = isMobile
+      ? ["00:00", "06:00", "12:00", "18:00"]
+      : ["00:00", "03:00", "06:00", "09:00", "12:00", "15:00", "18:00", "21:00"];
+
+    const filtered = targetTicks.filter((t) => availableTimes.has(t));
+    return filtered.length > 0 ? filtered : undefined;
+  }, [isMobile, chartData]);
+
   return (
-    <div className="tidelog-card rounded-lg p-5 sm:p-6 shadow-sm border border-[#D8CFBF]">
+    <div className="tidelog-card rounded-lg p-4 sm:p-6 shadow-sm border border-[#D8CFBF]">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-[#E3DAC9] gap-3">
         <div className="flex items-center gap-2">
           <Waves className="w-5 h-5 text-[#0A192F]" />
@@ -74,13 +95,13 @@ export function TideCurveChart({
         </div>
 
         {/* Station Quick Toggle & Tide Event Badges */}
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-2">
           {onStationChange && (
-            <div className="flex items-center gap-1 bg-[#FAF7F0] p-1 rounded-md border border-[#D8CFBF] mr-1">
+            <div className="flex items-center justify-center gap-1 bg-[#FAF7F0] p-1 rounded-md border border-[#D8CFBF] w-full sm:w-auto">
               <button
                 type="button"
                 onClick={() => onStationChange("aquatic-park")}
-                className={`px-2 py-0.5 rounded text-[11px] font-mono font-semibold transition-all ${
+                className={`flex-1 sm:flex-initial px-2.5 py-1 sm:py-0.5 rounded text-[11px] font-mono font-semibold transition-all text-center ${
                   selectedStation === "aquatic-park"
                     ? "bg-[#0A192F] text-[#F4EFE6] shadow-xs"
                     : "text-[#5B6B7A] hover:text-[#0A192F]"
@@ -91,7 +112,7 @@ export function TideCurveChart({
               <button
                 type="button"
                 onClick={() => onStationChange("crane-cove")}
-                className={`px-2 py-0.5 rounded text-[11px] font-mono font-semibold transition-all ${
+                className={`flex-1 sm:flex-initial px-2.5 py-1 sm:py-0.5 rounded text-[11px] font-mono font-semibold transition-all text-center ${
                   selectedStation === "crane-cove"
                     ? "bg-[#0A192F] text-[#F4EFE6] shadow-xs"
                     : "text-[#5B6B7A] hover:text-[#0A192F]"
@@ -102,26 +123,28 @@ export function TideCurveChart({
             </div>
           )}
 
-          {tideEvents.map((evt, idx) => (
-            <div
-              key={idx}
-              className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-mono font-semibold border ${
-                evt.type === "High"
-                  ? "bg-[#EBF3FC] text-[#0E3D75] border-[#B7D4F5]"
-                  : "bg-[#FBF2E3] text-[#7A4B0C] border-[#EECD9D]"
-              }`}
-            >
-              {evt.type === "High" ? (
-                <ArrowUpRight className="w-3.5 h-3.5 text-[#0E3D75]" />
-              ) : (
-                <ArrowDownRight className="w-3.5 h-3.5 text-[#7A4B0C]" />
-              )}
-              <span>
-                {evt.type === "High" ? "H" : "L"} {evt.time}
-              </span>
-              <span className="opacity-70 font-normal">({evt.height.toFixed(1)}&apos;)</span>
-            </div>
-          ))}
+          <div className="grid grid-cols-2 sm:flex sm:flex-wrap items-center gap-2 w-full sm:w-auto">
+            {tideEvents.map((evt, idx) => (
+              <div
+                key={idx}
+                className={`flex items-center justify-center sm:justify-start gap-1.5 px-2.5 py-1.5 sm:py-1 rounded text-xs font-mono font-semibold whitespace-nowrap border ${
+                  evt.type === "High"
+                    ? "bg-[#EBF3FC] text-[#0E3D75] border-[#B7D4F5]"
+                    : "bg-[#FBF2E3] text-[#7A4B0C] border-[#EECD9D]"
+                }`}
+              >
+                {evt.type === "High" ? (
+                  <ArrowUpRight className="w-3.5 h-3.5 shrink-0 text-[#0E3D75]" />
+                ) : (
+                  <ArrowDownRight className="w-3.5 h-3.5 shrink-0 text-[#7A4B0C]" />
+                )}
+                <span>
+                  {evt.type === "High" ? "H" : "L"} {evt.time}
+                </span>
+                <span className="opacity-70 font-normal">({evt.height.toFixed(1)}&apos;)</span>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -130,7 +153,12 @@ export function TideCurveChart({
         <ResponsiveContainer width="100%" height="100%">
           <AreaChart
             data={chartData}
-            margin={{ top: 15, right: 10, left: -15, bottom: 0 }}
+            margin={{
+              top: 15,
+              right: 10,
+              left: isMobile ? -20 : -15,
+              bottom: 0,
+            }}
           >
             <defs>
               <linearGradient id="tideGradient" x1="0" y1="0" x2="0" y2="1">
@@ -142,10 +170,11 @@ export function TideCurveChart({
             <XAxis
               dataKey="time"
               stroke="#7A6B53"
-              fontSize={11}
+              fontSize={isMobile ? 10 : 11}
               fontFamily="monospace"
               tickLine={false}
-              interval={4} // every 2-3 hours
+              ticks={xTicks}
+              interval={0}
             />
 
             <YAxis
@@ -219,7 +248,7 @@ export function TideCurveChart({
         </ResponsiveContainer>
       </div>
 
-      <div className="flex items-center justify-between text-xs text-[#5B6B7A] font-mono mt-3 pt-3 border-t border-[#EAE2D2]">
+      <div className="flex items-center justify-between text-[11px] sm:text-xs text-[#5B6B7A] font-mono mt-3 pt-3 border-t border-[#EAE2D2]">
         <span>00:00 Midnight</span>
         <span className="hidden sm:inline">MLLW (Mean Lower Low Water) 0.0′ Datum</span>
         <span>23:30 Nightfall</span>

@@ -344,9 +344,9 @@ function JournalEditorForm({
 
       {/* Main Journal Reflection Card */}
       <div className="tidelog-card rounded-lg p-5 sm:p-6 shadow-sm border border-[#D8CFBF]">
-        <div className="space-y-3">
-          <div className="flex items-center justify-between text-xs font-mono text-[#7A6B53]">
-            <span className="uppercase tracking-wider">
+        <div className="group space-y-3">
+          <div className="flex items-center justify-between text-xs font-mono text-[#7A6B53] group-focus-within:text-[#0A192F] transition-colors">
+            <span className="uppercase tracking-wider group-focus-within:font-semibold">
               General Daily Thoughts & Environmental Observations
             </span>
             <span>{reflection.length} characters</span>
@@ -358,7 +358,7 @@ function JournalEditorForm({
             onBlur={handleBlur}
             placeholder="Record the currents of the day... What stirred your thoughts? How did the weather or rhythm of the Bay meet you today? Note any shifts in tide, spirit, or project work."
             rows={7}
-            className="w-full p-4 rounded-md bg-[#FDFBF7] text-[#142334] font-serif text-base leading-relaxed border border-[#DFD7C7] placeholder:text-[#9A8F7D] focus:outline-none focus:ring-1 focus:ring-[#B38F4D] resize-y shadow-inner"
+            className="w-full p-4 rounded-md bg-[#FDFBF7] text-[#142334] font-serif text-base leading-relaxed border border-[#DFD7C7] hover:border-[#9A8F7D] placeholder:text-[#9A8F7D] focus:outline-none focus:border-[#0A192F] focus:ring-2 focus:ring-[#0A192F]/20 focus:bg-white resize-y shadow-inner transition-all"
           />
         </div>
       </div>
@@ -458,8 +458,8 @@ function JournalEditorForm({
                     </div>
 
                     {/* Context / Explanation Note */}
-                    <div className="space-y-1 pt-1">
-                      <label className="block text-[11px] font-mono text-[#7A6B53] uppercase tracking-wider">
+                    <div className="space-y-1 pt-1 group">
+                      <label className="block text-[11px] font-mono text-[#7A6B53] group-focus-within:text-[#0A192F] group-focus-within:font-semibold uppercase tracking-wider transition-colors">
                         Observations & Context (for AI analysis)
                       </label>
                       <textarea
@@ -474,7 +474,7 @@ function JournalEditorForm({
                             : `What hindered or shifted your focus from ${goal.name.toLowerCase()}?`
                         }
                         rows={3}
-                        className="w-full p-2.5 text-base sm:text-xs font-serif bg-white rounded border border-[#DFD7C7] text-[#0A192F] focus:outline-none focus:ring-1 focus:ring-[#B38F4D] resize-none placeholder:text-[#9A8F7D]"
+                        className="w-full p-2.5 text-base sm:text-xs font-serif bg-white rounded border border-[#DFD7C7] hover:border-[#9A8F7D] text-[#0A192F] focus:outline-none focus:border-[#0A192F] focus:ring-2 focus:ring-[#0A192F]/20 resize-none placeholder:text-[#9A8F7D] shadow-2xs focus:shadow-sm transition-all"
                       />
                     </div>
                   </div>

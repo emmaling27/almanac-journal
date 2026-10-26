@@ -74,6 +74,20 @@ describe("Environmental Calculations & Stations", () => {
       expect(typeof data.currentTideHeight).toBe("number");
       expect(["Flooding", "Ebbing", "Slack"]).toContain(data.tideTendency);
       expect(data.solarLunar.daylightHours).toBeDefined();
+
+      // Verify that major tick intervals exist in the curve for uncrowded mobile & desktop rendering
+      const curveTimes = new Set(data.tideCurve.map((p) => p.time));
+      const mobileTicks = ["00:00", "06:00", "12:00", "18:00"];
+      mobileTicks.forEach((tick) => expect(curveTimes.has(tick)).toBe(true));
+
+      const desktopTicks = ["00:00", "03:00", "06:00", "09:00", "12:00", "15:00", "18:00", "21:00"];
+      desktopTicks.forEach((tick) => expect(curveTimes.has(tick)).toBe(true));
+
+      // Verify tide event time formatting
+      for (const evt of data.tideEvents) {
+        expect(evt.time).toMatch(/^\d{2}:\d{2}$/);
+        expect(typeof evt.height).toBe("number");
+      }
     });
 
     it("fetches and constructs valid tidal and weather data for Crane Cove", async () => {
