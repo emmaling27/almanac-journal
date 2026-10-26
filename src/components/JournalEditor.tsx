@@ -56,6 +56,24 @@ function JournalEditorForm({
     return logsMap;
   });
 
+  // Track the last state confirmed saved on the backend or initially loaded
+  const lastCommittedRef = useRef<{
+    reflection: string;
+    goalLogs: Record<string, { met: boolean; note: string }>;
+  }>({
+    reflection: initialEntry?.reflection || "",
+    goalLogs: (() => {
+      const logsMap: Record<string, { met: boolean; note: string }> = {};
+      for (const log of initialGoalLogs) {
+        logsMap[log.goalId] = {
+          met: log.met,
+          note: log.note,
+        };
+      }
+      return logsMap;
+    })(),
+  });
+
   const [saveStatus, setSaveStatus] = useState<"saved" | "saving" | "pending" | "error">("saved");
   const [lastSavedTime, setLastSavedTime] = useState<string | null>(() =>
     initialEntry?.updatedAt
@@ -73,7 +91,6 @@ function JournalEditorForm({
     reflection,
     goalLogs,
     activeGoals,
-    hasUnsavedChanges: false,
   });
 
   latestDataRef.current = {
@@ -81,12 +98,35 @@ function JournalEditorForm({
     reflection,
     goalLogs,
     activeGoals,
-    hasUnsavedChanges,
   };
 
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
   const isSavingRef = useRef(false);
   const pendingSaveRef = useRef(false);
+
+  const checkHasUnsavedChanges = useCallback(() => {
+    const current = latestDataRef.current;
+    const committed = lastCommittedRef.current;
+
+    if (current.reflection !== committed.reflection) {
+      return true;
+    }
+
+    const allGoalIds = new Set([
+      ...Object.keys(current.goalLogs),
+      ...Object.keys(committed.goalLogs),
+    ]);
+
+    for (const id of allGoalIds) {
+      const cur = current.goalLogs[id] || { met: false, note: "" };
+      const com = committed.goalLogs[id] || { met: false, note: "" };
+      if (cur.met !== com.met || cur.note !== com.note) {
+        return true;
+      }
+    }
+
+    return false;
+  }, []);
 
   const performSave = useCallback(async () => {
     if (debounceTimerRef.current) {
@@ -99,28 +139,28 @@ function JournalEditorForm({
       return;
     }
 
-    const {
-      date,
-      reflection: currentReflection,
-      goalLogs: currentGoalLogs,
-      activeGoals: currentActiveGoals,
-      hasUnsavedChanges: isDirty,
-    } = latestDataRef.current;
-
-    if (!isDirty) {
+    if (!checkHasUnsavedChanges()) {
+      setSaveStatus("saved");
+      setHasUnsavedChanges(false);
       return;
     }
+
+    // Freeze snapshot of what is being committed in this round
+    const snapshotDate = latestDataRef.current.date;
+    const snapshotReflection = latestDataRef.current.reflection;
+    const snapshotGoalLogs = { ...latestDataRef.current.goalLogs };
+    const snapshotActiveGoals = latestDataRef.current.activeGoals;
 
     isSavingRef.current = true;
     setSaveStatus("saving");
 
     try {
       const goalIds = new Set<Id<"goals">>();
-      currentActiveGoals.forEach((g) => goalIds.add(g._id));
-      Object.keys(currentGoalLogs).forEach((id) => goalIds.add(id as Id<"goals">));
+      snapshotActiveGoals.forEach((g) => goalIds.add(g._id));
+      Object.keys(snapshotGoalLogs).forEach((id) => goalIds.add(id as Id<"goals">));
 
       const formattedGoalLogs = Array.from(goalIds).map((goalId) => {
-        const current = currentGoalLogs[goalId];
+        const current = snapshotGoalLogs[goalId];
         return {
           goalId,
           met: current?.met ?? false,
@@ -129,10 +169,16 @@ function JournalEditorForm({
       });
 
       await saveEntryMutation({
-        date,
-        reflection: currentReflection,
+        date: snapshotDate,
+        reflection: snapshotReflection,
         goalLogs: formattedGoalLogs,
       });
+
+      // Update committed state to reflect what the server now has
+      lastCommittedRef.current = {
+        reflection: snapshotReflection,
+        goalLogs: snapshotGoalLogs,
+      };
 
       const nowTime = new Date().toLocaleTimeString([], {
         hour: "2-digit",
@@ -140,9 +186,21 @@ function JournalEditorForm({
       });
       setLastSavedTime(nowTime);
 
-      if (!pendingSaveRef.current) {
+      // Check whether user continued typing while save was in flight
+      const stillDirty = checkHasUnsavedChanges();
+      if (stillDirty || pendingSaveRef.current) {
+        setHasUnsavedChanges(true);
+        setSaveStatus("pending");
+        pendingSaveRef.current = false;
+        if (debounceTimerRef.current) {
+          clearTimeout(debounceTimerRef.current);
+        }
+        debounceTimerRef.current = setTimeout(() => {
+          debounceTimerRef.current = null;
+          performSave();
+        }, 800);
+      } else {
         setHasUnsavedChanges(false);
-        latestDataRef.current.hasUnsavedChanges = false;
         setSaveStatus("saved");
       }
     } catch (err) {
@@ -155,11 +213,10 @@ function JournalEditorForm({
         performSave();
       }
     }
-  }, [saveEntryMutation]);
+  }, [checkHasUnsavedChanges, saveEntryMutation]);
 
   const scheduleDebouncedSave = useCallback(() => {
     setHasUnsavedChanges(true);
-    latestDataRef.current.hasUnsavedChanges = true;
     setSaveStatus("pending");
 
     if (debounceTimerRef.current) {
@@ -180,16 +237,15 @@ function JournalEditorForm({
 
   const handleGoalToggle = (goalId: Id<"goals">, currentMet: boolean) => {
     const updated = {
-      ...goalLogs,
+      ...latestDataRef.current.goalLogs,
       [goalId]: {
         met: !currentMet,
-        note: goalLogs[goalId]?.note || "",
+        note: latestDataRef.current.goalLogs[goalId]?.note || "",
       },
     };
     setGoalLogs(updated);
-    setHasUnsavedChanges(true);
     latestDataRef.current.goalLogs = updated;
-    latestDataRef.current.hasUnsavedChanges = true;
+    setHasUnsavedChanges(true);
 
     // Immediately save discrete goal toggle so updates reflect reactively
     performSave();
@@ -197,9 +253,9 @@ function JournalEditorForm({
 
   const handleGoalNoteChange = (goalId: Id<"goals">, note: string) => {
     const updated = {
-      ...goalLogs,
+      ...latestDataRef.current.goalLogs,
       [goalId]: {
-        met: goalLogs[goalId]?.met ?? false,
+        met: latestDataRef.current.goalLogs[goalId]?.met ?? false,
         note,
       },
     };
@@ -209,39 +265,77 @@ function JournalEditorForm({
   };
 
   const handleBlur = () => {
-    if (latestDataRef.current.hasUnsavedChanges && !isSavingRef.current) {
+    if (checkHasUnsavedChanges() && !isSavingRef.current) {
       performSave();
     }
   };
 
-  // Sync external changes when user is not actively editing
+  // Sync external changes ONLY when the field does not have uncommitted local changes
+  // and the incoming server data is not just an echo of what we already saved.
   useEffect(() => {
-    if (!latestDataRef.current.hasUnsavedChanges && !isSavingRef.current) {
-      if (initialEntry) {
-        setReflection(initialEntry.reflection);
-        if (initialEntry.updatedAt) {
-          setLastSavedTime(
-            new Date(initialEntry.updatedAt).toLocaleTimeString([], {
-              hour: "2-digit",
-              minute: "2-digit",
-            })
-          );
-        }
-      }
+    if (!initialEntry) return;
+
+    const hasLocalReflectionEdits =
+      latestDataRef.current.reflection !== lastCommittedRef.current.reflection;
+
+    if (
+      !hasLocalReflectionEdits &&
+      initialEntry.reflection !== lastCommittedRef.current.reflection
+    ) {
+      setReflection(initialEntry.reflection);
+      latestDataRef.current.reflection = initialEntry.reflection;
+      lastCommittedRef.current.reflection = initialEntry.reflection;
+    }
+
+    if (initialEntry.updatedAt) {
+      setLastSavedTime(
+        new Date(initialEntry.updatedAt).toLocaleTimeString([], {
+          hour: "2-digit",
+          minute: "2-digit",
+        })
+      );
     }
   }, [initialEntry]);
 
   useEffect(() => {
-    if (!latestDataRef.current.hasUnsavedChanges && !isSavingRef.current) {
-      const logsMap: Record<string, { met: boolean; note: string }> = {};
+    if (!initialGoalLogs) return;
+
+    // Only update individual goal logs from server if that specific goal log has NO uncommitted local edits
+    setGoalLogs((prevLogs) => {
+      let hasChanges = false;
+      const nextLogs = { ...prevLogs };
+
       for (const log of initialGoalLogs) {
-        logsMap[log.goalId] = {
-          met: log.met,
-          note: log.note,
+        const localLog = nextLogs[log.goalId] || { met: false, note: "" };
+        const committedLog = lastCommittedRef.current.goalLogs[log.goalId] || {
+          met: false,
+          note: "",
         };
+
+        const hasLocalEdits =
+          localLog.met !== committedLog.met || localLog.note !== committedLog.note;
+        const isServerDifferent =
+          log.met !== committedLog.met || log.note !== committedLog.note;
+
+        if (!hasLocalEdits && isServerDifferent) {
+          nextLogs[log.goalId] = {
+            met: log.met,
+            note: log.note,
+          };
+          lastCommittedRef.current.goalLogs[log.goalId] = {
+            met: log.met,
+            note: log.note,
+          };
+          hasChanges = true;
+        }
       }
-      setGoalLogs(logsMap);
-    }
+
+      if (hasChanges) {
+        latestDataRef.current.goalLogs = nextLogs;
+        return nextLogs;
+      }
+      return prevLogs;
+    });
   }, [initialGoalLogs]);
 
   // Flush unsaved changes on unmount or date change
@@ -250,29 +344,41 @@ function JournalEditorForm({
       if (debounceTimerRef.current) {
         clearTimeout(debounceTimerRef.current);
       }
-      if (latestDataRef.current.hasUnsavedChanges) {
-        const {
-          date,
-          reflection: currentReflection,
-          goalLogs: currentGoalLogs,
-          activeGoals: currentActiveGoals,
-        } = latestDataRef.current;
+      const current = latestDataRef.current;
+      const committed = lastCommittedRef.current;
+
+      const hasReflectionDiff = current.reflection !== committed.reflection;
+      const allGoalIds = new Set([
+        ...Object.keys(current.goalLogs),
+        ...Object.keys(committed.goalLogs),
+      ]);
+      let hasGoalsDiff = false;
+      for (const id of allGoalIds) {
+        const cur = current.goalLogs[id] || { met: false, note: "" };
+        const com = committed.goalLogs[id] || { met: false, note: "" };
+        if (cur.met !== com.met || cur.note !== com.note) {
+          hasGoalsDiff = true;
+          break;
+        }
+      }
+
+      if (hasReflectionDiff || hasGoalsDiff) {
         const goalIds = new Set<Id<"goals">>();
-        currentActiveGoals.forEach((g) => goalIds.add(g._id));
-        Object.keys(currentGoalLogs).forEach((id) => goalIds.add(id as Id<"goals">));
+        current.activeGoals.forEach((g) => goalIds.add(g._id));
+        Object.keys(current.goalLogs).forEach((id) => goalIds.add(id as Id<"goals">));
 
         const formattedGoalLogs = Array.from(goalIds).map((goalId) => {
-          const current = currentGoalLogs[goalId];
+          const currentLog = current.goalLogs[goalId];
           return {
             goalId,
-            met: current?.met ?? false,
-            note: current?.note ?? "",
+            met: currentLog?.met ?? false,
+            note: currentLog?.note ?? "",
           };
         });
 
         saveEntryMutation({
-          date,
-          reflection: currentReflection,
+          date: current.date,
+          reflection: current.reflection,
           goalLogs: formattedGoalLogs,
         }).catch((err) => {
           console.error("Failed to flush journal entry on unmount:", err);
@@ -288,7 +394,7 @@ function JournalEditorForm({
         <div className="flex items-center gap-2">
           <Feather className="w-5 h-5 text-[#B38F4D]" />
           <h2 className="text-xl sm:text-2xl font-serif font-bold tracking-tight text-[#0A192F]">
-            Captain&apos;s Log & Reflections
+            Captain&apos;s Log
           </h2>
         </div>
 

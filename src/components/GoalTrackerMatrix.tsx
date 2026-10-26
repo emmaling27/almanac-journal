@@ -101,10 +101,10 @@ export function GoalTrackerMatrix({
           <TrendingUp className="w-5 h-5 text-[#0A192F]" />
           <div>
             <h3 className="text-xl font-serif font-bold tracking-tight text-[#0A192F]">
-              Navigational Rhythm & Habit Matrix
+              Habit Matrix
             </h3>
             <p className="text-xs text-[#5B6B7A] font-mono">
-              14-Day Trajectory • Click any date column to review historical entry
+              14-Day Trajectory
             </p>
             <span className="text-[10px] text-[#B38F4D] font-mono sm:hidden block mt-0.5">
               Swipe across columns to see all 14 days &rarr;

@@ -17,6 +17,7 @@ import {
   TideStationId,
   TIDE_STATIONS,
 } from "@/lib/environmental";
+import { MllwTooltip } from "./MllwTooltip";
 
 interface TideCurveChartProps {
   tideCurve: TidePoint[];
@@ -79,72 +80,38 @@ export function TideCurveChart({
       <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-[#E3DAC9] gap-3">
         <div className="flex items-center gap-2">
           <Waves className="w-5 h-5 text-[#0A192F]" />
-          <div>
-            <div className="flex items-center gap-2">
-              <h2 className="text-xl font-serif font-bold tracking-tight text-[#0A192F]">
-                Tidal Curve & Soundings (MLLW)
-              </h2>
-              <span className="text-[10px] font-mono uppercase px-2 py-0.5 rounded bg-[#EAE2D2] text-[#0A192F] font-bold border border-[#D8CFBF]">
-                {stationConfig.shortName}
-              </span>
-            </div>
-            <p className="text-xs text-[#5B6B7A] font-mono">
-              24-Hour Continuous Tidal Cycle • {stationConfig.name}
-            </p>
+          <div className="flex items-center gap-2">
+            <h2 className="text-xl font-serif font-bold tracking-tight text-[#0A192F]">
+              Tidal Curve & Soundings
+            </h2>
+            <span className="text-[10px] font-mono uppercase px-2 py-0.5 rounded bg-[#EAE2D2] text-[#0A192F] font-bold border border-[#D8CFBF]">
+              {stationConfig.shortName}
+            </span>
           </div>
         </div>
 
-        {/* Station Quick Toggle & Tide Event Badges */}
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-2">
-          {onStationChange && (
-            <div className="flex items-center justify-center gap-1 bg-[#FAF7F0] p-1 rounded-md border border-[#D8CFBF] w-full sm:w-auto">
-              <button
-                type="button"
-                onClick={() => onStationChange("aquatic-park")}
-                className={`flex-1 sm:flex-initial px-2.5 py-1 sm:py-0.5 rounded text-[11px] font-mono font-semibold transition-all text-center ${
-                  selectedStation === "aquatic-park"
-                    ? "bg-[#0A192F] text-[#F4EFE6] shadow-xs"
-                    : "text-[#5B6B7A] hover:text-[#0A192F]"
-                }`}
-              >
-                Aquatic Park
-              </button>
-              <button
-                type="button"
-                onClick={() => onStationChange("crane-cove")}
-                className={`flex-1 sm:flex-initial px-2.5 py-1 sm:py-0.5 rounded text-[11px] font-mono font-semibold transition-all text-center ${
-                  selectedStation === "crane-cove"
-                    ? "bg-[#0A192F] text-[#F4EFE6] shadow-xs"
-                    : "text-[#5B6B7A] hover:text-[#0A192F]"
-                }`}
-              >
-                Crane Cove
-              </button>
+        {/* Tide Event Badges */}
+        <div className="flex flex-wrap items-center gap-2">
+          {tideEvents.map((evt, idx) => (
+            <div
+              key={idx}
+              className={`flex items-center justify-center sm:justify-start gap-1.5 px-2.5 py-1.5 sm:py-1 rounded text-xs font-mono font-semibold whitespace-nowrap border ${
+                evt.type === "High"
+                  ? "bg-[#EBF3FC] text-[#0E3D75] border-[#B7D4F5]"
+                  : "bg-[#FBF2E3] text-[#7A4B0C] border-[#EECD9D]"
+              }`}
+            >
+              {evt.type === "High" ? (
+                <ArrowUpRight className="w-3.5 h-3.5 shrink-0 text-[#0E3D75]" />
+              ) : (
+                <ArrowDownRight className="w-3.5 h-3.5 shrink-0 text-[#7A4B0C]" />
+              )}
+              <span>
+                {evt.type === "High" ? "H" : "L"} {evt.time}
+              </span>
+              <span className="opacity-70 font-normal">({evt.height.toFixed(1)}&apos;)</span>
             </div>
-          )}
-
-          <div className="grid grid-cols-2 sm:flex sm:flex-wrap items-center gap-2 w-full sm:w-auto">
-            {tideEvents.map((evt, idx) => (
-              <div
-                key={idx}
-                className={`flex items-center justify-center sm:justify-start gap-1.5 px-2.5 py-1.5 sm:py-1 rounded text-xs font-mono font-semibold whitespace-nowrap border ${
-                  evt.type === "High"
-                    ? "bg-[#EBF3FC] text-[#0E3D75] border-[#B7D4F5]"
-                    : "bg-[#FBF2E3] text-[#7A4B0C] border-[#EECD9D]"
-                }`}
-              >
-                {evt.type === "High" ? (
-                  <ArrowUpRight className="w-3.5 h-3.5 shrink-0 text-[#0E3D75]" />
-                ) : (
-                  <ArrowDownRight className="w-3.5 h-3.5 shrink-0 text-[#7A4B0C]" />
-                )}
-                <span>
-                  {evt.type === "High" ? "H" : "L"} {evt.time}
-                </span>
-                <span className="opacity-70 font-normal">({evt.height.toFixed(1)}&apos;)</span>
-              </div>
-            ))}
-          </div>
+          ))}
         </div>
       </div>
 
@@ -248,10 +215,10 @@ export function TideCurveChart({
         </ResponsiveContainer>
       </div>
 
-      <div className="flex items-center justify-between text-[11px] sm:text-xs text-[#5B6B7A] font-mono mt-3 pt-3 border-t border-[#EAE2D2]">
-        <span>00:00 Midnight</span>
-        <span className="hidden sm:inline">MLLW (Mean Lower Low Water) 0.0′ Datum</span>
-        <span>23:30 Nightfall</span>
+      <div className="flex items-center justify-center text-[11px] sm:text-xs text-[#5B6B7A] font-mono mt-3 pt-3 border-t border-[#EAE2D2]">
+        <MllwTooltip variant="light" align="center">
+          <span>MLLW (Mean Lower Low Water) 0.0′ Datum</span>
+        </MllwTooltip>
       </div>
     </div>
   );

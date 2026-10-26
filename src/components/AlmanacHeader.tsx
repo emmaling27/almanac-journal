@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React from "react";
 import { format, parseISO, addDays, subDays } from "date-fns";
 import {
   Compass,
@@ -12,7 +12,6 @@ import {
   ChevronLeft,
   ChevronRight,
   Anchor,
-  Clock,
   LogIn,
   LogOut,
   User as UserIcon,
@@ -22,6 +21,7 @@ import {
   TideStationId,
   TIDE_STATIONS,
 } from "@/lib/environmental";
+import { MllwTooltip } from "./MllwTooltip";
 import { useConvexAuth, useAuthActions } from "@convex-dev/auth/react";
 import { useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
@@ -120,18 +120,12 @@ export function AlmanacHeader({
 
         {/* Masthead */}
         <div className="text-center space-y-2 border-b border-[#D8CFBF] pb-5 relative">
-          <div className="flex items-center justify-center gap-2 text-xs uppercase tracking-[0.25em] text-[#7A6B53] font-mono">
-            <Anchor className="w-3.5 h-3.5 text-[#B38F4D]" />
-            <span>Maritime Journal & Observatory • San Francisco Bay</span>
-            <Anchor className="w-3.5 h-3.5 text-[#B38F4D]" />
-          </div>
-
           <h1 className="text-2xl sm:text-4xl md:text-5xl font-bold tracking-tight text-[#0A192F] font-serif uppercase">
             SF Bay Tidelog & Personal Journal
           </h1>
 
-          <p className="text-[11px] sm:text-sm text-[#5B6B7A] tracking-wider font-mono uppercase px-2">
-            {stationConfig.name} • {stationConfig.coordinates} • NOAA STATION #{stationConfig.noaaStationId}
+          <p className="text-[11px] sm:text-xs text-[#5B6B7A] tracking-wider font-mono uppercase px-2">
+            San Francisco Bay • NOAA Station #{stationConfig.noaaStationId}
           </p>
 
           <div className="nautical-rule mt-3" />
@@ -225,11 +219,6 @@ export function AlmanacHeader({
             />
           </div>
 
-          <div className="hidden sm:flex items-center gap-2 text-xs font-mono text-[#5B6B7A]">
-            <Clock className={`w-3.5 h-3.5 text-[#B38F4D] ${loading ? "animate-spin" : ""}`} />
-            <span>PST / LST Tidal Meridian</span>
-          </div>
-
           <div className="text-center sm:hidden font-serif font-bold text-sm text-[#0A192F]">
             {selectedDate ? format(currentDateObj, "EEEE, MMMM d, yyyy") : "Loading date..."}
           </div>
@@ -288,9 +277,6 @@ export function AlmanacHeader({
                 </p>
               </div>
             </div>
-            <div className="mt-2 text-[11px] text-[#7A6B53] font-mono border-t border-[#EAE2D2] pt-1.5">
-              <span>Synodic Cycle: 29.53d</span>
-            </div>
           </div>
 
           {/* Wind Card */}
@@ -344,7 +330,9 @@ export function AlmanacHeader({
                     ? `${envData.currentTideHeight.toFixed(1)}`
                     : "--"}
                 </span>
-                <span className="text-xs font-mono text-[#A0B0C0]">ft MLLW</span>
+                <span className="text-xs font-mono text-[#A0B0C0] flex items-center gap-1">
+                  ft <MllwTooltip variant="dark" align="right">MLLW</MllwTooltip>
+                </span>
               </div>
               <div className="mt-1">
                 <span
@@ -359,10 +347,6 @@ export function AlmanacHeader({
                   {envData?.tideTendency ?? "Flooding"}
                 </span>
               </div>
-            </div>
-            <div className="mt-2 text-[11px] text-[#A0B0C0] font-mono border-t border-[#1E3A5F] pt-1.5 flex justify-between">
-              <span>Station:</span>
-              <span className="text-[#DFC898]">{stationConfig.shortName}</span>
             </div>
           </div>
         </div>
