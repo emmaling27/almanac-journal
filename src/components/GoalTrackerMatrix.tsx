@@ -7,7 +7,6 @@ import { api } from "../../convex/_generated/api";
 import { format, subDays, parseISO } from "date-fns";
 import {
   TrendingUp,
-  Award,
 } from "lucide-react";
 
 interface GoalTrackerMatrixProps {
@@ -109,15 +108,6 @@ export function GoalTrackerMatrix({
             <span className="text-[10px] text-[#B38F4D] font-mono sm:hidden block mt-0.5">
               Swipe across columns to see all 14 days &rarr;
             </span>
-          </div>
-        </div>
-
-        {/* Stats Summary Chips */}
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-1.5 text-xs font-mono px-3 py-1 bg-[#FAF7F0] rounded border border-[#E3DAC9]">
-            <Award className="w-3.5 h-3.5 text-[#B38F4D]" />
-            <span className="text-[#5B6B7A]">Total Recorded:</span>
-            <span className="font-bold text-[#0A192F]">{allLogs.length}</span>
           </div>
         </div>
       </div>
