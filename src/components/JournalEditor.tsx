@@ -478,9 +478,6 @@ function JournalEditorForm({
               Daily Navigational Goals
             </h3>
           </div>
-          <span className="text-xs font-mono text-[#7A6B53]">
-            Context notes stored for AI trajectory analysis
-          </span>
         </div>
 
         {activeGoals.length === 0 ? (
@@ -566,7 +563,7 @@ function JournalEditorForm({
                     {/* Context / Explanation Note */}
                     <div className="space-y-1 pt-1 group">
                       <label className="block text-[11px] font-mono text-[#7A6B53] group-focus-within:text-[#0A192F] group-focus-within:font-semibold uppercase tracking-wider transition-colors">
-                        Observations & Context (for AI analysis)
+                        Observations & Context
                       </label>
                       <textarea
                         value={currentLog.note}
